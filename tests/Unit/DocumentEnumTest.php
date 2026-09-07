@@ -2,11 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Domain\Documents\Enums\DocumentFieldKey;
+use App\Domain\Documents\Enums\DocumentFieldKind;
 use App\Domain\Documents\Enums\DocumentFileKind;
 use App\Domain\Documents\Enums\DocumentProcessingStage;
 use App\Domain\Documents\Enums\DocumentSourceType;
 use App\Domain\Documents\Enums\DocumentStatus;
 use App\Domain\Documents\Enums\DocumentType;
+use App\Domain\Documents\Enums\DocumentTypeSource;
+use App\Domain\Documents\Enums\ExtractionStatus;
 use App\Domain\Documents\Enums\InboxFilter;
 use App\Domain\Documents\Enums\ProcessingJobStatus;
 
@@ -185,6 +189,69 @@ it('menandai berkas original sebagai immutable', function (): void {
     // plan.md §37 Phase 3: "original file tetap tersimpan".
     expect(DocumentFileKind::Original->isImmutable())->toBeTrue();
     expect(DocumentFileKind::Thumbnail->isImmutable())->toBeFalse();
+});
+
+it('menentukan tipe nilai setiap field canonical', function (): void {
+    /*
+     * Tipe field menentukan kolom penyimpanannya, dan kolom yang salah akan membuat nilai
+     * uang tersimpan sebagai teks tanpa pernah dapat dijumlahkan (plan.md §23.3).
+     */
+    expect(DocumentFieldKey::Total->kind())->toBe(DocumentFieldKind::Money);
+    expect(DocumentFieldKey::RowDebit->kind())->toBe(DocumentFieldKind::Money);
+    expect(DocumentFieldKey::DocumentDate->kind())->toBe(DocumentFieldKind::Date);
+    expect(DocumentFieldKey::TransactionCount->kind())->toBe(DocumentFieldKind::Integer);
+    expect(DocumentFieldKey::IssuerName->kind())->toBe(DocumentFieldKind::Text);
+});
+
+it('memisahkan field baris mutasi dari field tingkat dokumen', function (): void {
+    expect(DocumentFieldKey::rowFields())->toBe([
+        DocumentFieldKey::RowDate,
+        DocumentFieldKey::RowDescription,
+        DocumentFieldKey::RowDebit,
+        DocumentFieldKey::RowCredit,
+        DocumentFieldKey::RowBalance,
+    ]);
+
+    expect(DocumentFieldKey::Total->isRowField())->toBeFalse();
+    expect(DocumentFieldKey::RowBalance->isRowField())->toBeTrue();
+});
+
+it('memetakan field ke kolom canonical dokumen', function (): void {
+    /*
+     * plan.md §8.1: inbox harus dapat menampilkan tanggal dan nilai dokumen apa pun
+     * jenisnya, tanpa mengetahui schema tiap extractor.
+     */
+    expect(DocumentFieldKey::DocumentDate->canonicalColumn())->toBe('document_date');
+    expect(DocumentFieldKey::SettlementDate->canonicalColumn())->toBe('document_date');
+    expect(DocumentFieldKey::PeriodEnd->canonicalColumn())->toBe('document_date');
+    expect(DocumentFieldKey::GrossAmount->canonicalColumn())->toBe('total');
+
+    // Field yang tidak punya bentuk canonical tetap tersimpan, hanya tidak diproyeksikan.
+    expect(DocumentFieldKey::DocumentNumber->canonicalColumn())->toBeNull();
+    expect(DocumentFieldKey::RowDebit->canonicalColumn())->toBeNull();
+});
+
+it('memberi label indonesia pada setiap field yang dilihat reviewer', function (): void {
+    // plan.md §16.3 melarang nama teknis muncul di hadapan user.
+    foreach (DocumentFieldKey::cases() as $key) {
+        expect($key->label())->not->toBe('')->and($key->label())->not->toBe($key->value);
+    }
+});
+
+it('membedakan jenis dokumen dari manusia dan dari model', function (): void {
+    /*
+     * plan.md §17.1: prediksi tidak boleh menimpa pernyataan manusia, dan pembedaannya
+     * ada di sini.
+     */
+    expect(DocumentTypeSource::User->isHuman())->toBeTrue();
+    expect(DocumentTypeSource::Review->isHuman())->toBeTrue();
+    expect(DocumentTypeSource::Ai->isHuman())->toBeFalse();
+});
+
+it('hanya menganggap ekstraksi accepted sebagai sumber nilai sah', function (): void {
+    // plan.md §37 Phase 4: output invalid tidak masuk transaction pipeline.
+    expect(ExtractionStatus::Accepted->producesFields())->toBeTrue();
+    expect(ExtractionStatus::Rejected->producesFields())->toBeFalse();
 });
 
 it('menandai status job yang sudah selesai', function (): void {
