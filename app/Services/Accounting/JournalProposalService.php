@@ -217,12 +217,7 @@ class JournalProposalService
             RuleAmountSource::NetAmount => DocumentFieldKey::NetAmount,
             RuleAmountSource::Tax => DocumentFieldKey::Tax,
             RuleAmountSource::Subtotal => DocumentFieldKey::Subtotal,
-            default => null,
         };
-
-        if ($field === null) {
-            return $transaction->amount;
-        }
 
         $document = $transaction->sourceDocument;
 

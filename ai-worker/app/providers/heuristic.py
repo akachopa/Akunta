@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.numbers import money_to_string, normalize_amount, parse_date
-from app.providers.base import AIProviderError, AIProviderInterface, ProviderResult, ProviderUsage
+from app.providers.base import AIProviderInterface, ProviderResult, ProviderUsage
 from app.taxonomy import UNKNOWN_TYPE, priority_of
 
 # Batas atas confidence provider aturan. Nilainya berada di bawah default
@@ -362,10 +362,26 @@ class HeuristicProvider(AIProviderInterface):
         """Heuristic peristiwa ekonomi, selaras dengan klasifikasi Laravel Phase 8."""
 
         keyword_events: tuple[tuple[tuple[str, ...], str, str], ...] = (
-            (("biaya admin", "biaya bank", "admin bank", "monthly fee"), "BANK_FEE", "biaya administrasi bank"),
-            (("setoran tunai", "setor tunai", "deposit tunai"), "CASH_TO_BANK_TRANSFER", "setoran tunai"),
-            (("tarik tunai", "penarikan tunai", "atm withdrawal"), "BANK_TO_CASH_TRANSFER", "penarikan tunai"),
-            (("transfer antar rekening", "pindah buku", "internal transfer"), "BANK_TRANSFER_INTERNAL", "transfer internal"),
+            (
+                ("biaya admin", "biaya bank", "admin bank", "monthly fee"),
+                "BANK_FEE",
+                "biaya admin bank",
+            ),
+            (
+                ("setoran tunai", "setor tunai", "deposit tunai"),
+                "CASH_TO_BANK_TRANSFER",
+                "setoran tunai",
+            ),
+            (
+                ("tarik tunai", "penarikan tunai", "atm withdrawal"),
+                "BANK_TO_CASH_TRANSFER",
+                "tarik tunai",
+            ),
+            (
+                ("transfer antar rekening", "pindah buku", "internal transfer"),
+                "BANK_TRANSFER_INTERNAL",
+                "transfer internal",
+            ),
         )
 
         for needles, code, label in keyword_events:

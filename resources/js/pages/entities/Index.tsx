@@ -58,7 +58,9 @@ export default function EntityIndex({ business, entities }: Props) {
                                     <td className="py-2">
                                         <StatusBadge
                                             status={entity.confirmed ? 'ready' : 'need_review'}
-                                            label={entity.confirmed ? 'Terkonfirmasi' : 'Dari dokumen'}
+                                            label={
+                                                entity.confirmed ? 'Terkonfirmasi' : 'Dari dokumen'
+                                            }
                                         />
                                     </td>
                                     <td className="py-2 text-right font-mono">

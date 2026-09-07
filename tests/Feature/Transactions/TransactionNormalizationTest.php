@@ -432,8 +432,7 @@ it('menolak transisi status transaksi yang melanggar state machine', function ()
     /** @var Transaction $transaction */
     $transaction = Transaction::query()->withoutGlobalScopes()->first();
 
-    $transaction->transitionTo(TransactionStatus::Classified);
-    $transaction->transitionTo(TransactionStatus::Ready);
+    // Pipeline Phase 6–9 sudah menempatkan transaksi di Ready.
     $transaction->transitionTo(TransactionStatus::Approved);
     $transaction->transitionTo(TransactionStatus::Posted);
 

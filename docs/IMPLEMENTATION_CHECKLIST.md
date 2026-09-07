@@ -400,12 +400,12 @@ Redis 7 yang benar-benar berjalan.
 
 | Perintah | Hasil |
 | --- | --- |
-| `php artisan migrate:fresh --seed` | Seluruh 31 migration dan kedua seeder jalan tanpa error |
-| `php artisan test` | 351 test, 1799 assertion, seluruhnya lulus |
+| `php artisan migrate:fresh --seed` | Seluruh 43 migration dan ketiga seeder jalan tanpa error |
+| `php artisan test` | 363 test, 1941 assertion, seluruhnya lulus |
 | `vendor/bin/pint --test` | Lolos |
 | `vendor/bin/phpstan analyse` | Level 6, tanpa error |
 | `npm run lint` / `format:check` / `types` / `build` | Seluruhnya lolos |
-| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 146 test worker lulus |
+| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 153 test worker lulus |
 | `php artisan akunta:health --dispatch-queue-probe` | database, cache, object_storage, ai_worker, dan queue berstatus OK |
 | `php artisan queue:work --stop-when-empty` | `QueueHeartbeatJob` dieksekusi sampai selesai |
 
@@ -463,11 +463,21 @@ Koreksi yang muncul dari test Phase 5:
   `ready` hanya diberikan setelah transaksinya benar-benar terbentuk atau setelah tercatat
   bahwa jenis dokumen itu memang belum punya bentuk transaksi.
 
+Koreksi yang muncul dari test Phase 6–9:
+
+- Self-FK `entities.merged_into_id` tidak dapat dibuat di dalam `Schema::create` yang
+  sama pada PostgreSQL (`SQLSTATE 42830`). Constraint-nya ditambahkan setelah tabel
+  terbentuk, mengikuti pola `journal_entries.reversal_of_id`.
+- Deteksi duplikat memakai `created_at >=` untuk memilih transaksi yang tidak dijurnal
+  ulang. Perbandingan ketat `>` memilih transaksi lama ketika dua unggahan jatuh pada
+  detik yang sama, sehingga dokumen kedua tetap mendapat jurnal (double transaction).
+
 Test Laravel tidak pernah memanggil worker Python: respons `/v1/parse`, `/v1/classify`,
-dan `/v1/extract` di-fake lewat `Tests\Support\UploadsDocuments`, sedangkan parser,
-classifier, dan extractor aslinya diuji pytest di `ai-worker`. Pemisahan ini menjaga test
-Laravel tetap deterministik dan tidak bergantung pada proses eksternal maupun pada
-provider AI.
+`/v1/extract`, dan `/v1/classify-event` di-fake lewat `Tests\Support\UploadsDocuments`
+dan `Http::fake` pada `EconomicEventClassificationTest`, sedangkan parser, classifier,
+extractor, dan klasifikasi peristiwa aslinya diuji pytest di `ai-worker`. Pemisahan ini
+menjaga test Laravel tetap deterministik dan tidak bergantung pada proses eksternal
+maupun pada provider AI.
 
 `tests/Feature` tidak dianalisis PHPStan karena Pest mem-bind `$this` di dalam closure
 saat runtime; hal itu didokumentasikan di `phpstan.neon`.

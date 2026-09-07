@@ -121,12 +121,10 @@ final class EconomicEventHeuristic
 
     private function transferProof(Transaction $transaction, bool $related): HeuristicClassification
     {
-        if ($related && $transaction->direction === TransactionDirection::Outflow) {
-            return $this->hit(EconomicEventCode::PaySupplier, '0.94', 'Bukti transfer tertaut dengan faktur pembelian.');
-        }
-
-        if ($related && $transaction->direction === TransactionDirection::Inflow) {
-            return $this->hit(EconomicEventCode::ReceiveReceivable, '0.94', 'Bukti transfer tertaut dengan faktur penjualan.');
+        if ($related) {
+            return $transaction->direction === TransactionDirection::Outflow
+                ? $this->hit(EconomicEventCode::PaySupplier, '0.94', 'Bukti transfer tertaut dengan faktur pembelian.')
+                : $this->hit(EconomicEventCode::ReceiveReceivable, '0.94', 'Bukti transfer tertaut dengan faktur penjualan.');
         }
 
         return $this->fallback($transaction);
@@ -134,12 +132,10 @@ final class EconomicEventHeuristic
 
     private function bankRow(Transaction $transaction, bool $related, string $description): HeuristicClassification
     {
-        if ($related && $transaction->direction === TransactionDirection::Outflow) {
-            return $this->hit(EconomicEventCode::PaySupplier, '0.93', 'Mutasi keluar tertaut dengan faktur pembelian.');
-        }
-
-        if ($related && $transaction->direction === TransactionDirection::Inflow) {
-            return $this->hit(EconomicEventCode::ReceiveReceivable, '0.93', 'Mutasi masuk tertaut dengan faktur penjualan.');
+        if ($related) {
+            return $transaction->direction === TransactionDirection::Outflow
+                ? $this->hit(EconomicEventCode::PaySupplier, '0.93', 'Mutasi keluar tertaut dengan faktur pembelian.')
+                : $this->hit(EconomicEventCode::ReceiveReceivable, '0.93', 'Mutasi masuk tertaut dengan faktur penjualan.');
         }
 
         if ($transaction->source_type === TransactionSourceType::BankStatement && $this->mentions($description, ['qris', 'settlement'])) {

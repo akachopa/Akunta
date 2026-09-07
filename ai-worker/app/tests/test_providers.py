@@ -29,7 +29,10 @@ def test_unknown_provider_raises() -> None:
         resolve_provider("provider-yang-tidak-ada")
 
 
-@pytest.mark.parametrize("task", ["classify_document", "extract_document", "classify_economic_event"])
+@pytest.mark.parametrize(
+    "task",
+    ["classify_document", "extract_document", "classify_economic_event"],
+)
 def test_task_routing_falls_back_to_default_provider(task: str) -> None:
     """plan.md §13.2: routing per task, dengan default bila task tidak dipetakan."""
     assert isinstance(resolve_for_task(task), HeuristicProvider)

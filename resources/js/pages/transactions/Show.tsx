@@ -117,9 +117,7 @@ export default function TransactionShow({ business, transaction, can }: Props) {
                             <select
                                 className="rounded-md border border-slate-300 px-3 py-2 text-sm"
                                 value={form.data.event_code}
-                                onChange={(event) =>
-                                    form.setData('event_code', event.target.value)
-                                }
+                                onChange={(event) => form.setData('event_code', event.target.value)}
                             >
                                 <option value="">Pilih peristiwa</option>
                                 {transaction.event_options.map((option) => (
