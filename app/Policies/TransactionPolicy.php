@@ -10,12 +10,12 @@ use App\Domain\Transactions\Models\Transaction;
 use App\Models\User;
 
 /**
- * Hak atas transaksi hasil normalisasi (plan.md §29.4).
+ * Hak atas transaksi hasil normalisasi (plan.md §29.4, Review Center Phase 10).
  *
- * Pada Phase 5 hanya hak melihat yang ada. Approve, reject, dan koreksi transaksi memang
- * disebut plan.md §29.4, tetapi ketiganya menetapkan makna ekonomi yang baru ditafsirkan
- * Phase 8 dan disetujui lewat review center Phase 10. Menyediakan permission-nya lebih awal
- * berarti menegakkan hak atas tindakan yang belum ada, dan itu tidak dapat diuji.
+ * Melihat: semua role bisnis.
+ * Review (koreksi, komentar, tag): owner dan accountant (plan.md §4.2, §4.4).
+ * Approve/reject: owner dan accountant.
+ * Posting jurnal tetap memakai JournalEntryPolicy::post (hanya accountant).
  */
 class TransactionPolicy
 {
@@ -27,6 +27,21 @@ class TransactionPolicy
     public function view(User $user, Transaction $transaction): bool
     {
         return $user->hasBusinessPermission($transaction->business_id, PermissionSlug::TransactionView);
+    }
+
+    public function review(User $user, Transaction $transaction): bool
+    {
+        return $user->hasBusinessPermission($transaction->business_id, PermissionSlug::TransactionReview);
+    }
+
+    public function approve(User $user, Transaction $transaction): bool
+    {
+        return $user->hasBusinessPermission($transaction->business_id, PermissionSlug::TransactionApprove);
+    }
+
+    public function reject(User $user, Transaction $transaction): bool
+    {
+        return $this->approve($user, $transaction);
     }
 
     /**

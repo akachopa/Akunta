@@ -4,29 +4,47 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Domain\Accounting\Enums\EconomicEventCode;
+use App\Domain\Business\Enums\PermissionSlug;
 use App\Domain\Business\Models\Business;
 use App\Domain\Documents\Models\Document;
+use App\Domain\Review\Enums\ReviewActionType;
+use App\Domain\Review\Models\ReviewTask;
 use App\Domain\Transactions\Enums\TransactionFilter;
+use App\Domain\Transactions\Enums\TransactionStatus;
 use App\Domain\Transactions\Models\Transaction;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\TransactionPresenter;
+use App\Models\User;
+use App\Services\Accounting\JournalProposalService;
+use App\Services\EconomicEvents\EconomicEventClassificationService;
+use App\Services\Review\ReviewTaskService;
+use App\Services\Review\TransactionReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 /**
- * plan.md §29.4, sebatas yang sudah ada pada Phase 5:
+ * plan.md §29.4:
  *
- * GET /businesses/{id}/transactions
- * GET /transactions/{id}
+ * GET  /businesses/{id}/transactions
+ * GET  /transactions/{id}
+ * POST /transactions/{id}/approve
+ * POST /transactions/{id}/reject
+ * POST /transactions/{id}/post
+ * POST /transactions/{id}/classify
  *
- * Endpoint approve, reject, dan koreksi transaksi pada plan.md §29.4 belum dibuat: ketiganya
- * menetapkan makna ekonomi yang baru ditafsirkan Phase 8 dan disetujui lewat review center
- * Phase 10. Menyediakannya sekarang berarti menerima keputusan yang tidak dapat dipakai
- * sistem mana pun.
+ * Posting jurnal tetap endpoint terpisah: approve ≠ post (plan.md §15.2).
  */
 class TransactionController extends Controller
 {
-    public function __construct(private readonly TransactionPresenter $presenter) {}
+    public function __construct(
+        private readonly TransactionPresenter $presenter,
+        private readonly TransactionReviewService $review,
+        private readonly ReviewTaskService $tasks,
+        private readonly EconomicEventClassificationService $events,
+        private readonly JournalProposalService $journals,
+    ) {}
 
     public function index(Request $request, Business $business): JsonResponse
     {
@@ -73,8 +91,128 @@ class TransactionController extends Controller
     {
         $this->authorize('view', $transaction);
 
-        $transaction->load(['source.document', 'evidence', 'counterpartyEntity', 'economicEvent', 'outgoingRelations.toTransaction', 'incomingRelations.fromTransaction', 'journalEntries.lines.account']);
+        $transaction->load([
+            'source.document',
+            'evidence',
+            'counterpartyEntity',
+            'economicEvent',
+            'outgoingRelations.toTransaction',
+            'incomingRelations.fromTransaction',
+            'journalEntries.lines.account',
+            'tags',
+        ]);
 
         return response()->json(['data' => $this->presenter->detail($transaction)]);
+    }
+
+    public function approve(Request $request, Transaction $transaction): JsonResponse
+    {
+        $this->authorize('approve', $transaction);
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $task = $this->review->approve($transaction, $this->actor($request), $validated['reason'] ?? null);
+
+        return response()->json(['data' => $this->payload($transaction->refresh(), $task)]);
+    }
+
+    public function reject(Request $request, Transaction $transaction): JsonResponse
+    {
+        $this->authorize('reject', $transaction);
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $task = $this->review->reject($transaction, $this->actor($request), $validated['reason']);
+
+        return response()->json(['data' => $this->payload($transaction->refresh(), $task)]);
+    }
+
+    public function post(Request $request, Transaction $transaction): JsonResponse
+    {
+        $this->authorize('approve', $transaction);
+        abort_unless(
+            $this->actor($request)->hasBusinessPermission($transaction->business_id, PermissionSlug::JournalPost),
+            403
+        );
+
+        $validated = $request->validate([
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $task = $this->review->post($transaction, $this->actor($request), $validated['reason'] ?? null);
+
+        return response()->json(['data' => $this->payload($transaction->refresh(), $task)]);
+    }
+
+    public function classify(Request $request, Transaction $transaction): JsonResponse
+    {
+        $this->authorize('review', $transaction);
+
+        $validated = $request->validate([
+            'event_code' => ['required', 'string', Rule::in(EconomicEventCode::values())],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $actor = $this->actor($request);
+
+        $this->events->correct(
+            $transaction,
+            EconomicEventCode::from($validated['event_code']),
+            $actor,
+            $validated['reason'] ?? null,
+        );
+
+        $this->journals->propose($transaction->refresh());
+
+        if ($transaction->status->canTransitionTo(TransactionStatus::Ready)) {
+            $transaction->transitionTo(TransactionStatus::Ready, ['review_reason' => null]);
+        }
+
+        $task = $this->tasks->syncFromTransaction($transaction->refresh());
+
+        if ($task instanceof ReviewTask) {
+            $this->tasks->recordAction(
+                $task,
+                ReviewActionType::Correct,
+                $actor,
+                $validated['reason'] ?? null,
+            );
+        }
+
+        return response()->json(['data' => $this->payload($transaction->refresh(), $task)]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function payload(Transaction $transaction, ?ReviewTask $task): array
+    {
+        $transaction->load([
+            'source.document',
+            'evidence',
+            'counterpartyEntity',
+            'economicEvent',
+            'outgoingRelations.toTransaction',
+            'incomingRelations.fromTransaction',
+            'journalEntries.lines.account',
+            'tags',
+        ]);
+
+        return $this->presenter->detail($transaction) + [
+            'review_task_id' => $task?->getKey(),
+            'review_task_status' => $task?->status->value,
+        ];
+    }
+
+    private function actor(Request $request): User
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        return $user;
     }
 }

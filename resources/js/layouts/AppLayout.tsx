@@ -15,8 +15,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     /*
      * Menu mengikuti plan.md §6, tetapi hanya memuat cabang yang sudah dibangun.
-     * Review Center, Reconciliation, Closing, dan AI Analyst belum ditampilkan
-     * karena halamannya belum ada.
+     * Reconciliation, Closing, dan AI Analyst belum ditampilkan karena halamannya belum ada.
      */
     const navigation: NavItem[] = currentBusiness
         ? [
@@ -25,6 +24,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   label: 'Inbox',
                   href: `/businesses/${currentBusiness.id}/documents`,
                   permission: 'document.view',
+              },
+              {
+                  label: 'Review Center',
+                  href: `/businesses/${currentBusiness.id}/review`,
+                  permission: 'transaction.review',
               },
               {
                   label: 'Transaksi',

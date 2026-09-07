@@ -78,6 +78,8 @@ it('mengembalikan 404 ketika user bukan member business', function (): void {
     $this->actingAs($outsider)->get("/businesses/{$business->getKey()}/accounts")->assertNotFound();
     $this->actingAs($outsider)->get("/businesses/{$business->getKey()}/journals")->assertNotFound();
     $this->actingAs($outsider)->get("/businesses/{$business->getKey()}/periods")->assertNotFound();
+    $this->actingAs($outsider)->get("/businesses/{$business->getKey()}/transactions")->assertNotFound();
+    $this->actingAs($outsider)->get("/businesses/{$business->getKey()}/review")->assertNotFound();
     $this->actingAs($outsider)
         ->get("/businesses/{$business->getKey()}/reports/trial-balance")
         ->assertNotFound();

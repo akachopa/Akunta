@@ -15,6 +15,7 @@ use App\Services\Audit\AuditLogger;
 use App\Services\DocumentProcessing\DocumentStageRecorder;
 use App\Services\EconomicEvents\EconomicEventClassificationService;
 use App\Services\EntityResolution\EntityResolutionService;
+use App\Services\Review\ReviewTaskService;
 use App\Services\TransactionMatching\TransactionMatchingService;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +37,7 @@ class TransactionIntelligenceService
         private readonly JournalProposalService $journals,
         private readonly ConfidenceEngine $confidence,
         private readonly AuditLogger $audit,
+        private readonly ReviewTaskService $reviewTasks,
     ) {}
 
     public function process(Document $document): bool
@@ -82,6 +84,7 @@ class TransactionIntelligenceService
             foreach (Transaction::query()->fromDocument($document)->with(['source.document', 'economicEvent'])->get() as $transaction) {
                 if (in_array($transaction->getKey(), $duplicateIds, true)) {
                     $this->markDuplicate($transaction);
+                    $this->reviewTasks->syncFromTransaction($transaction->refresh());
                     $needReview++;
 
                     continue;
@@ -139,6 +142,8 @@ class TransactionIntelligenceService
                 } else {
                     $transaction->transitionTo(TransactionStatus::Ready, ['review_reason' => null]);
                 }
+
+                $this->reviewTasks->syncFromTransaction($transaction->refresh());
             }
 
             $document->transitionTo(DocumentStatus::Ready, ['review_reason' => null]);

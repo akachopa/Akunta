@@ -47,6 +47,8 @@ it('memberi owner hak kelola bisnis tetapi bukan hak posting journal', function 
     expect($owner->hasBusinessPermission($business, PermissionSlug::BusinessManage))->toBeTrue();
     expect($owner->hasBusinessPermission($business, PermissionSlug::MemberManage))->toBeTrue();
     expect($owner->hasBusinessPermission($business, PermissionSlug::JournalApprove))->toBeTrue();
+    expect($owner->hasBusinessPermission($business, PermissionSlug::TransactionReview))->toBeTrue();
+    expect($owner->hasBusinessPermission($business, PermissionSlug::TransactionApprove))->toBeTrue();
     expect($owner->hasBusinessPermission($business, PermissionSlug::PeriodClose))->toBeTrue();
 
     /*
@@ -65,7 +67,10 @@ it('membatasi staff pada upload dan pembuatan journal draft', function (): void 
 
     expect($staff->hasBusinessPermission($business, PermissionSlug::JournalCreate))->toBeTrue();
     expect($staff->hasBusinessPermission($business, PermissionSlug::AccountView))->toBeTrue();
+    expect($staff->hasBusinessPermission($business, PermissionSlug::TransactionView))->toBeTrue();
 
+    expect($staff->hasBusinessPermission($business, PermissionSlug::TransactionReview))->toBeFalse();
+    expect($staff->hasBusinessPermission($business, PermissionSlug::TransactionApprove))->toBeFalse();
     expect($staff->hasBusinessPermission($business, PermissionSlug::JournalApprove))->toBeFalse();
     expect($staff->hasBusinessPermission($business, PermissionSlug::JournalPost))->toBeFalse();
     expect($staff->hasBusinessPermission($business, PermissionSlug::AccountManage))->toBeFalse();

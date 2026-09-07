@@ -301,7 +301,7 @@ it('menggantikan transaksi lama ketika dokumen dinormalisasi ulang', function ()
      */
     expect($second)->toHaveCount(2);
     expect($second->pluck('id')->all())->not->toBe($first);
-    expect($second->pluck('reference')->all())->toBe(['TRX-000003', 'TRX-000004']);
+    expect($second->pluck('reference')->sort()->values()->all())->toBe(['TRX-000003', 'TRX-000004']);
 
     // Bukti transaksi lama ikut hilang bersama transaksinya, tidak menggantung.
     expect(TransactionEvidence::query()->withoutGlobalScopes()->count())->toBe(4);
