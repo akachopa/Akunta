@@ -1,0 +1,211 @@
+# plan.md §37 Phase 0: "CI/CD" dan acceptance "test berjalan di CI".
+name: CI
+
+on:
+    push:
+        branches: [main]
+    pull_request:
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    php:
+        name: PHP (pint, phpstan, pest)
+        runs-on: ubuntu-latest
+
+        services:
+            # Test suite memakai PostgreSQL karena sebagian aturan akuntansi ditegakkan
+            # oleh CHECK constraint dan partial unique index (plan.md §24.2, §44.16).
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_DB: akunta_testing
+                    POSTGRES_USER: akunta
+                    POSTGRES_PASSWORD: akunta
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+
+            redis:
+                image: redis:7
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 5s
+                    --health-timeout 3s
+                    --health-retries 10
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  # bcmath wajib: seluruh aritmetika uang memakainya (plan.md §44.14).
+                  extensions: bcmath, intl, pdo_pgsql, redis, zip
+                  coverage: none
+
+            - name: Cache Composer
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/composer
+                  key: composer-${{ hashFiles('composer.lock') }}
+                  restore-keys: composer-
+
+            - run: composer install --no-interaction --prefer-dist
+
+            - name: Siapkan environment
+              run: |
+                  cp .env.example .env
+                  php artisan key:generate
+
+            - name: Pint
+              run: vendor/bin/pint --test
+
+            - name: PHPStan
+              run: vendor/bin/phpstan analyse --memory-limit=1G --no-progress
+
+            - name: Migration
+              env:
+                  DB_HOST: 127.0.0.1
+                  DB_DATABASE: akunta_testing
+              run: php artisan migrate --force
+
+            - name: Pest
+              env:
+                  DB_HOST: 127.0.0.1
+                  REDIS_HOST: 127.0.0.1
+              run: php artisan test
+
+    frontend:
+        name: Frontend (eslint, prettier, tsc, build)
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npm run lint
+
+            - run: npm run format:check
+
+            - run: npm run types
+
+            - run: npm run build
+
+    # plan.md §37 Phase 0 acceptance: "aplikasi bisa dijalankan, queue jalan, AI worker
+    # reachable". Ketiganya diperiksa lewat perintah akunta:health terhadap service yang
+    # benar-benar berjalan, bukan lewat fake.
+    integration:
+        name: Integrasi (health check, queue, AI worker)
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:16
+                env:
+                    POSTGRES_DB: akunta
+                    POSTGRES_USER: akunta
+                    POSTGRES_PASSWORD: akunta
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 10
+
+            redis:
+                image: redis:7
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 5s
+                    --health-timeout 3s
+                    --health-retries 10
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: bcmath, intl, pdo_pgsql, redis, zip
+                  coverage: none
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+
+            - run: composer install --no-interaction --prefer-dist
+
+            - name: Siapkan environment
+              run: |
+                  cp .env.example .env
+                  php artisan key:generate
+                  # MinIO tidak dijalankan di CI; disk documents dipakai secara lokal.
+                  echo "DOCUMENT_DISK_DRIVER=local" >> .env
+
+            - name: Jalankan AI worker
+              run: |
+                  pip install -r ai-worker/requirements.txt
+                  (cd ai-worker && nohup uvicorn app.main:app --host 127.0.0.1 --port 8001 > /tmp/ai-worker.log 2>&1 &)
+                  for i in $(seq 1 30); do
+                      curl -fsS http://127.0.0.1:8001/health && break
+                      sleep 1
+                  done
+
+            - name: Migration dan seed
+              run: |
+                  php artisan migrate --force
+                  php artisan db:seed --force
+
+            - name: Health check dan queue probe
+              run: php artisan akunta:health --dispatch-queue-probe
+
+            - name: Queue worker mengeksekusi job
+              run: php artisan queue:work --stop-when-empty --tries=1
+
+            - name: Log AI worker bila gagal
+              if: failure()
+              run: cat /tmp/ai-worker.log
+
+    ai-worker:
+        name: AI worker (ruff, pytest)
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ai-worker
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: actions/setup-python@v5
+              with:
+                  python-version: '3.12'
+                  cache: pip
+                  cache-dependency-path: ai-worker/requirements-dev.txt
+
+            - run: pip install -r requirements.txt -r requirements-dev.txt
+
+            - run: ruff check .
+
+            - run: ruff format --check .
+
+            - run: pytest -q

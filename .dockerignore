@@ -1,0 +1,14 @@
+.git
+.github
+.env
+node_modules
+vendor
+public/build
+public/hot
+storage/framework/cache/data
+storage/framework/sessions
+storage/framework/views
+storage/logs
+ai-worker/.venv
+ai-worker/.pytest_cache
+ai-worker/.ruff_cache
