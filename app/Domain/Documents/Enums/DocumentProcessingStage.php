@@ -1,0 +1,87 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Documents\Enums;
+
+/**
+ * Tahap pipeline dokumen (plan.md §13.1).
+ *
+ * Setiap tahap dicatat sebagai baris `document_processing_jobs` supaya durasi, jumlah
+ * percobaan, dan penyebab kegagalannya terlihat (plan.md §32.1 `average_processing_time`,
+ * `documents_failed`).
+ *
+ * Sampai Phase 9 tahap `parse`, `classify`, `extract`, `normalize`, dan `match` sudah
+ * berjalan. `match` mencakup entity resolution, duplicate/related, klasifikasi peristiwa
+ * ekonomi, dan usulan jurnal.
+ */
+enum DocumentProcessingStage: string
+{
+    case Parse = 'parse';
+    case Classify = 'classify';
+    case Extract = 'extract';
+    case Normalize = 'normalize';
+    case Match = 'match';
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::Parse => 'Membaca Berkas',
+            self::Classify => 'Klasifikasi Dokumen',
+            self::Extract => 'Ekstraksi Data',
+            self::Normalize => 'Normalisasi Transaksi',
+            self::Match => 'Pencocokan',
+        };
+    }
+
+    /**
+     * Phase tempat tahap ini dibangun, dipakai untuk menjelaskan ke user mengapa sebuah
+     * tahap belum berjalan.
+     */
+    public function phase(): int
+    {
+        return match ($this) {
+            self::Parse => 3,
+            self::Classify, self::Extract => 4,
+            self::Normalize => 5,
+            self::Match => 7,
+        };
+    }
+
+    public function isImplemented(): bool
+    {
+        return match ($this) {
+            self::Parse, self::Classify, self::Extract, self::Normalize, self::Match => true,
+        };
+    }
+
+    /**
+     * Status dokumen selama tahap ini berjalan (plan.md §25.1).
+     */
+    public function runningStatus(): DocumentStatus
+    {
+        return match ($this) {
+            self::Parse => DocumentStatus::Parsing,
+            self::Classify => DocumentStatus::Classifying,
+            self::Extract => DocumentStatus::Extracting,
+            self::Normalize => DocumentStatus::Normalizing,
+            self::Match => DocumentStatus::Matching,
+        };
+    }
+
+    public function next(): ?self
+    {
+        $cases = self::cases();
+        $index = array_search($this, $cases, true);
+
+        return $cases[$index + 1] ?? null;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function values(): array
+    {
+        return array_map(static fn (self $case): string => $case->value, self::cases());
+    }
+}

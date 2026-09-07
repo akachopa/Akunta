@@ -1,0 +1,35 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 6
+
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests/Unit
+        - tests/Support
+        - tests/TestCase.php
+
+    excludePaths:
+        - bootstrap/cache
+        - storage
+
+    # Nilai uang selalu berupa string desimal (plan.md §44.14). Tipe kolom hasil tebakan
+    # Larastan dari schema tidak dipakai; setiap model mendeklarasikan @property sendiri.
+    checkModelProperties: false
+
+    ignoreErrors:
+        # Trait helper hanya di-use lewat Pest.php, bukan lewat class test.
+        -
+            identifier: trait.unused
+            paths:
+                - tests/Support/ProvisionsBusinesses.php
+                - tests/Support/UploadsDocuments.php
+
+# tests/Feature tidak dianalisis: Pest mem-bind $this di dalam closure ke instance
+# TestCase saat runtime, sehingga helper trait dan state yang ditulis pada beforeEach
+# tidak dapat diselesaikan secara statis dan menghasilkan error palsu berantai. Test
+# tersebut dijaga oleh Pest sendiri lewat `php artisan test`.
