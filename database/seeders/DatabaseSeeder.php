@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolePermissionSeeder::class,
             CoaTemplateSeeder::class,
+            AccountingIntelligenceSeeder::class,
         ]);
     }
 }

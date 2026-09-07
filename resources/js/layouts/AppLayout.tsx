@@ -14,8 +14,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         usePage<SharedPageProps>().props;
 
     /*
-     * Menu mengikuti plan.md §6, tetapi hanya memuat cabang yang sudah dibangun pada
-     * Phase 0–5. Review Center, Reconciliation, Closing, dan AI Analyst belum ditampilkan
+     * Menu mengikuti plan.md §6, tetapi hanya memuat cabang yang sudah dibangun.
+     * Review Center, Reconciliation, Closing, dan AI Analyst belum ditampilkan
      * karena halamannya belum ada.
      */
     const navigation: NavItem[] = currentBusiness
@@ -30,6 +30,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
                   label: 'Transaksi',
                   href: `/businesses/${currentBusiness.id}/transactions`,
                   permission: 'transaction.view',
+              },
+              {
+                  label: 'Pihak Lawan',
+                  href: `/businesses/${currentBusiness.id}/entities`,
+                  permission: 'entity.view',
               },
               { label: 'Profil Bisnis', href: `/businesses/${currentBusiness.id}` },
               {

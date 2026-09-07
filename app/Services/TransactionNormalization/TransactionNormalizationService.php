@@ -191,7 +191,7 @@ class TransactionNormalizationService
                 $created[] = $transaction->reference;
             }
 
-            $document->transitionTo(DocumentStatus::Ready, ['review_reason' => null]);
+            $document->transitionTo(DocumentStatus::Matching, ['review_reason' => null]);
 
             $job->markSucceeded([
                 'transaction_count' => count($created),

@@ -22,6 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.security import require_internal_token
 from app.classifiers.document import classify
+from app.classifiers.economic_event import classify_event
 from app.extractors.router import (
     NoExtractorAvailable,
     resolve_extractor,
@@ -30,8 +31,9 @@ from app.extractors.router import (
 from app.providers.base import AIProviderError, AIProviderOutputError
 from app.providers.registry import resolve_for_task
 from app.schemas.classify import ClassifyRequest, ClassifyResponse
+from app.schemas.event import ClassifyEventRequest, ClassifyEventResponse
 from app.schemas.extract import ExtractRequest, ExtractResponse
-from app.taxonomy import DOCUMENT_TYPES
+from app.taxonomy import DOCUMENT_TYPES, ECONOMIC_EVENT_CODES
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,7 @@ def taxonomy() -> dict[str, list[str]]:
     return {
         "document_types": list(DOCUMENT_TYPES),
         "extractable_document_types": supported_document_types(),
+        "economic_event_codes": list(ECONOMIC_EVENT_CODES),
     }
 
 
@@ -101,6 +104,57 @@ def classify_document(request: ClassifyRequest) -> ClassifyResponse:
     )
 
     return ClassifyResponse.model_validate(outcome.to_dict())
+
+
+@router.get("/classify-event/taxonomy")
+def event_taxonomy() -> dict[str, list[str]]:
+    """Taksonomi peristiwa ekonomi (plan.md §10, §14.3)."""
+
+    return {"economic_event_codes": list(ECONOMIC_EVENT_CODES)}
+
+
+@router.post("/classify-event", response_model=ClassifyEventResponse)
+def classify_economic_event(request: ClassifyEventRequest) -> ClassifyEventResponse:
+    try:
+        provider = resolve_for_task("classify_economic_event", request.provider)
+    except KeyError as exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exception),
+        ) from exception
+
+    try:
+        outcome = classify_event(
+            description=request.description,
+            amount=request.amount,
+            direction=request.direction,
+            document_type=request.document_type,
+            counterparty=request.counterparty,
+            business_context=request.business_context,
+            provider=provider,
+        )
+    except AIProviderOutputError as exception:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exception),
+        ) from exception
+    except AIProviderError as exception:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exception),
+        ) from exception
+
+    logger.info(
+        "economic event classified",
+        extra={
+            "event_code": outcome.event_code,
+            "confidence": outcome.confidence,
+            "provider": outcome.provider,
+            "model": outcome.model,
+        },
+    )
+
+    return ClassifyEventResponse.model_validate(outcome.to_dict())
 
 
 @router.post("/extract", response_model=ExtractResponse)

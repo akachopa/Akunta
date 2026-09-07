@@ -11,10 +11,9 @@ namespace App\Domain\Documents\Enums;
  * percobaan, dan penyebab kegagalannya terlihat (plan.md §32.1 `average_processing_time`,
  * `documents_failed`).
  *
- * Sampai Phase 5 tahap `parse`, `classify`, `extract`, dan `normalize` sudah berjalan.
- * `match` tetap terdaftar di sini agar timeline pipeline dapat menampilkan apa yang masih
- * menunggu, dan `isImplemented()` menjaga agar tidak ada kode yang mengira tahap itu
- * berjalan.
+ * Sampai Phase 9 tahap `parse`, `classify`, `extract`, `normalize`, dan `match` sudah
+ * berjalan. `match` mencakup entity resolution, duplicate/related, klasifikasi peristiwa
+ * ekonomi, dan usulan jurnal.
  */
 enum DocumentProcessingStage: string
 {
@@ -52,8 +51,7 @@ enum DocumentProcessingStage: string
     public function isImplemented(): bool
     {
         return match ($this) {
-            self::Parse, self::Classify, self::Extract, self::Normalize => true,
-            self::Match => false,
+            self::Parse, self::Classify, self::Extract, self::Normalize, self::Match => true,
         };
     }
 

@@ -169,6 +169,43 @@ class AiWorkerClient
     }
 
     /**
+     * Klasifikasi peristiwa ekonomi (plan.md §14.3).
+     *
+     * @return array{event_code: string, confidence: string|float, reason: string, missing_information: array<int, string>}
+     */
+    public function classifyEconomicEvent(
+        string $description,
+        string $amount,
+        string $direction,
+        ?string $documentType = null,
+        ?string $counterparty = null,
+        ?string $businessContext = null,
+    ): array {
+        $response = $this->send('classify_event', '/v1/classify-event', [
+            'description' => $description,
+            'amount' => $amount,
+            'direction' => $direction,
+            'document_type' => $documentType,
+            'counterparty' => $counterparty,
+            'business_context' => $businessContext,
+        ]);
+
+        /** @var array<string, mixed> $payload */
+        $payload = $response->json() ?? [];
+
+        $missing = $payload['missing_information'] ?? [];
+
+        return [
+            'event_code' => (string) ($payload['event_code'] ?? ''),
+            'confidence' => $payload['confidence'] ?? '0',
+            'reason' => (string) ($payload['reason'] ?? ''),
+            'missing_information' => is_array($missing)
+                ? array_values(array_filter($missing, static fn (mixed $item): bool => is_string($item)))
+                : [],
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $body
      */
     private function send(string $task, string $endpoint, array $body): Response

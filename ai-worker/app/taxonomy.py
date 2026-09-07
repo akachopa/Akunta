@@ -55,6 +55,52 @@ CLASSIFIER_PRIORITY: tuple[str, ...] = (
 
 UNKNOWN_TYPE = "unknown"
 
+# Taksonomi economic event (plan.md §10). Digandakan dari enum Laravel
+# `EconomicEventCode` dengan alasan yang sama: worker menolak kode karangan tanpa
+# memanggil Laravel (plan.md §14.3, §37 Phase 8).
+ECONOMIC_EVENT_CODES: tuple[str, ...] = (
+    "SALE_CASH",
+    "SALE_CREDIT",
+    "SALE_CONSIGNMENT",
+    "RECEIVE_RECEIVABLE",
+    "SALES_RETURN",
+    "OTHER_OPERATING_INCOME",
+    "OTHER_NONOPERATING_INCOME",
+    "PURCHASE_INVENTORY_CASH",
+    "PURCHASE_INVENTORY_CREDIT",
+    "PURCHASE_RAW_MATERIAL",
+    "PURCHASE_PACKAGING",
+    "PURCHASE_RETURN",
+    "PAY_SUPPLIER",
+    "SALARY_EXPENSE",
+    "UTILITY_EXPENSE",
+    "RENT_EXPENSE",
+    "MARKETING_EXPENSE",
+    "SHIPPING_EXPENSE",
+    "OFFICE_SUPPLIES_EXPENSE",
+    "REPAIR_MAINTENANCE_EXPENSE",
+    "BANK_FEE",
+    "INTEREST_EXPENSE",
+    "TAX_PAYMENT",
+    "OTHER_OPERATING_EXPENSE",
+    "ASSET_PURCHASE",
+    "ASSET_SALE",
+    "DEPRECIATION",
+    "PREPAID_EXPENSE",
+    "OWNER_CAPITAL",
+    "OWNER_WITHDRAWAL",
+    "LOAN_RECEIVED",
+    "LOAN_PRINCIPAL_PAYMENT",
+    "LOAN_INTEREST_PAYMENT",
+    "BANK_TRANSFER_INTERNAL",
+    "CASH_TO_BANK_TRANSFER",
+    "BANK_TO_CASH_TRANSFER",
+)
+
+
+def is_known_event(value: str) -> bool:
+    return value in ECONOMIC_EVENT_CODES
+
 
 def is_known_type(value: str) -> bool:
     return value in DOCUMENT_TYPES

@@ -40,6 +40,8 @@ class JournalEntry extends Model implements KeepsAuditSnapshot
 
     public const SOURCE_REVERSAL = 'reversal';
 
+    public const SOURCE_TRANSACTION = 'transaction';
+
     /**
      * Kolom yang masih boleh diubah setelah entry berstatus posted.
      *

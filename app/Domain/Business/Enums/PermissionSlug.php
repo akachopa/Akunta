@@ -38,6 +38,9 @@ enum PermissionSlug: string
      */
     case TransactionView = 'transaction.view';
 
+    case EntityView = 'entity.view';
+    case EntityManage = 'entity.manage';
+
     case BankAccountView = 'bank_account.view';
     case BankAccountManage = 'bank_account.manage';
 
@@ -75,6 +78,8 @@ enum PermissionSlug: string
             self::DocumentManage => 'Memproses ulang dan mengarsipkan dokumen',
             self::DocumentReview => 'Meninjau dan mengoreksi hasil pembacaan dokumen',
             self::TransactionView => 'Melihat transaksi hasil normalisasi dokumen',
+            self::EntityView => 'Melihat daftar pihak lawan transaksi',
+            self::EntityManage => 'Mengonfirmasi dan menggabungkan entity',
             self::BankAccountView => 'Melihat rekening bank',
             self::BankAccountManage => 'Mengelola rekening bank',
             self::PeriodView => 'Melihat accounting period',

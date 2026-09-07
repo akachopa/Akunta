@@ -12,6 +12,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\DocumentReviewController;
+use App\Http\Controllers\EntityController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TrialBalanceController;
@@ -81,6 +82,12 @@ Route::middleware('auth')->group(function (): void {
              */
             Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
             Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
+            Route::post('transactions/{transaction}/classify', [TransactionController::class, 'classify'])->name('transactions.classify');
+
+            Route::get('entities', [EntityController::class, 'index'])->name('entities.index');
+            Route::get('entities/{entity}', [EntityController::class, 'show'])->name('entities.show');
+            Route::post('entities/{entity}/confirm', [EntityController::class, 'confirm'])->name('entities.confirm');
+            Route::post('entities/{entity}/merge', [EntityController::class, 'mergeInto'])->name('entities.merge');
 
             Route::get('accounts', [ChartOfAccountController::class, 'index'])->name('accounts.index');
             Route::post('accounts', [ChartOfAccountController::class, 'store'])->name('accounts.store');

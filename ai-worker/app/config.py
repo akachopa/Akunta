@@ -8,6 +8,8 @@ from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+WORKER_VERSION = "0.5.0"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AI_WORKER_", env_file=".env", extra="ignore")
@@ -28,6 +30,7 @@ class Settings(BaseSettings):
     # Kosong berarti mengikuti default_provider.
     provider_classify: str | None = None
     provider_extract: str | None = None
+    provider_classify_event: str | None = None
 
     provider_timeout: int = 60
 

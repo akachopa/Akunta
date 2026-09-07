@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\AccountingPeriodController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\DocumentController;
+use App\Http\Controllers\Api\V1\EntityController;
 use App\Http\Controllers\Api\V1\JournalController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\TransactionController;
@@ -15,10 +16,9 @@ use Illuminate\Support\Facades\Route;
 /*
  * Prefix /api/v1 dikonfigurasi di bootstrap/app.php (plan.md §29).
  *
- * Endpoint yang tersedia dibatasi pada Phase 1–5: auth, businesses, accounts, journals,
- * periods, trial balance, documents, review dokumen, dan pembacaan transaksi. Tindakan atas
- * transaksi (plan.md §29.4), reconciliation §29.5, dan AI analyst §29.10 belum dibuat karena
- * berada di phase berikutnya.
+ * Endpoint yang tersedia: auth, businesses, accounts, journals, periods, trial balance,
+ * documents, review dokumen, transaksi, dan entity. Tindakan approve/reject transaksi
+ * (plan.md §29.4) dan reconciliation §29.5 menunggu Phase 10–11.
  */
 
 Route::post('auth/login', [AuthController::class, 'login'])
@@ -44,6 +44,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('businesses/{business}/transactions', [TransactionController::class, 'index'])
             ->name('api.transactions.index');
 
+        Route::get('businesses/{business}/entities', [EntityController::class, 'index'])
+            ->name('api.entities.index');
+
         Route::get('businesses/{business}/accounts', [AccountController::class, 'index'])->name('api.accounts.index');
         Route::post('businesses/{business}/accounts', [AccountController::class, 'store'])->name('api.accounts.store');
 
@@ -66,6 +69,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('documents/{document}/review/approve', [DocumentController::class, 'approve'])->name('api.documents.review.approve');
 
     Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('api.transactions.show');
+    Route::get('entities/{entity}', [EntityController::class, 'show'])->name('api.entities.show');
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])->name('api.journals.show');
     Route::post('journals/{journal}/approve', [JournalController::class, 'approve'])->name('api.journals.approve');

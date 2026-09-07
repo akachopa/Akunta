@@ -7,7 +7,7 @@ container, tetapi juga tidak membocorkan konfigurasi apa pun selain nama provide
 
 from fastapi import APIRouter
 
-from app.config import get_settings
+from app.config import WORKER_VERSION, get_settings
 from app.extractors.router import supported_document_types
 from app.parsers.router import supported_extensions
 from app.providers.registry import available_providers
@@ -23,14 +23,19 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service=settings.app_name,
-        version="0.4.0",
+        version=WORKER_VERSION,
         environment=settings.environment,
         default_provider=settings.default_provider,
         available_providers=available_providers(),
         # Hanya kapabilitas yang benar-benar terpasang yang dilaporkan. Laravel memakai
         # daftar ini untuk memastikan worker yang dihubungi memang mampu memproses
         # dokumen sebelum pipeline dijalankan.
-        capabilities=["document_parse", "document_classify", "document_extract"],
+        capabilities=[
+            "document_parse",
+            "document_classify",
+            "document_extract",
+            "economic_event_classify",
+        ],
         supported_extensions=supported_extensions(),
         extractable_document_types=supported_document_types(),
     )

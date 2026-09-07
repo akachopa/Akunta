@@ -49,6 +49,7 @@ def resolve_for_task(task: str, override: str | None = None) -> AIProviderInterf
     routing = {
         "classify_document": settings.provider_classify,
         "extract_document": settings.provider_extract,
+        "classify_economic_event": settings.provider_classify_event,
     }
 
     return resolve_provider(routing.get(task) or settings.default_provider)

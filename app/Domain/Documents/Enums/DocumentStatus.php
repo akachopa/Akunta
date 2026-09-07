@@ -10,14 +10,9 @@ namespace App\Domain\Documents\Enums;
  * UPLOADED → QUEUED → PARSING → CLASSIFYING → EXTRACTING → NORMALIZING → MATCHING →
  * READY, dengan NEED_REVIEW, UNSUPPORTED, FAILED, dan ARCHIVED sebagai cabang.
  *
- * Sampai Phase 5 pipeline berjalan hingga NORMALIZING selesai. Dokumen yang ekstraksinya
- * diterima dan confidence-nya melewati ambang auto-ready masuk ke NORMALIZING, lalu berakhir
- * di READY setelah transaksinya terbentuk; sisanya menunggu di NEED_REVIEW.
- *
- * READY karena itu berarti dua hal sekaligus: data dokumennya lengkap dan tervalidasi, dan
- * transaksi canonical-nya sudah dibuat. MATCHING tetap ada sebagai state karena plan.md
- * §25.1 mendefinisikannya, tetapi tidak ada dokumen yang memasukinya sebelum Phase 7
- * membangun duplicate dan related-document matching.
+ * Sampai Phase 9 pipeline berjalan hingga MATCHING selesai: entity resolution,
+ * duplicate/related, klasifikasi peristiwa ekonomi, dan usulan jurnal draft. Dokumen
+ * berakhir di READY setelah transaksi canonical-nya terbentuk dan dicocokkan.
  */
 enum DocumentStatus: string
 {
@@ -84,13 +79,12 @@ enum DocumentStatus: string
             self::Extracting => [self::Normalizing, self::Ready, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
             /*
-             * NORMALIZING dapat langsung ke READY karena MATCHING adalah pekerjaan Phase 7.
-             * Ia juga dapat kembali ke QUEUED agar percobaan yang terputus di tengah tahap
-             * dapat dipulihkan tanpa intervensi database.
+             * NORMALIZING berlanjut ke MATCHING bila transaksi terbentuk. READY tetap
+             * tujuan yang sah untuk jenis dokumen yang tidak menghasilkan transaksi.
              */
             self::Normalizing => [self::Matching, self::Ready, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
-            self::Matching => [self::Ready, self::NeedReview, self::Failed, self::Archived],
+            self::Matching => [self::Ready, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
             /*
              * plan.md §37 Phase 3 acceptance: "failure dapat diretry". Retry mengembalikan

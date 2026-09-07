@@ -49,7 +49,7 @@ class TransactionController extends Controller
 
         // plan.md §40: list yang dipaginasi dan filter di sisi server.
         $transactions = $query
-            ->with(['source.document'])
+            ->with(['source.document', 'counterpartyEntity', 'economicEvent'])
             ->orderByDesc('transaction_date')
             ->orderBy('reference')
             ->paginate(min((int) $request->integer('per_page', 50) ?: 50, 200));
@@ -73,7 +73,7 @@ class TransactionController extends Controller
     {
         $this->authorize('view', $transaction);
 
-        $transaction->load(['source.document', 'evidence']);
+        $transaction->load(['source.document', 'evidence', 'counterpartyEntity', 'economicEvent', 'outgoingRelations.toTransaction', 'incomingRelations.fromTransaction', 'journalEntries.lines.account']);
 
         return response()->json(['data' => $this->presenter->detail($transaction)]);
     }

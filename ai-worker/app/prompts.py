@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.taxonomy import DOCUMENT_TYPES
+from app.taxonomy import DOCUMENT_TYPES, ECONOMIC_EVENT_CODES
 
 
 @dataclass(frozen=True)
@@ -110,4 +110,65 @@ def extract_document_contract(
         payload=payload,
         json_schema=json_schema,
         metadata={"document_type": document_type, "schema_version": schema_version},
+    )
+
+
+CLASSIFY_ECONOMIC_EVENT_VERSION = "1.0"
+
+_EVENT_SYSTEM = (
+    "Anda mengklasifikasikan satu transaksi keuangan UMKM Indonesia ke dalam taksonomi "
+    "peristiwa ekonomi yang diberikan. Jawab hanya dengan kode dari daftar; jangan membuat "
+    "kode baru. Bila bukti tidak cukup, pilih OTHER_OPERATING_INCOME atau "
+    "OTHER_OPERATING_EXPENSE sesuai arah uang, dengan confidence rendah, dan sebutkan "
+    "informasi yang kurang. Jangan menulis baris jurnal. Transfer internal, setoran modal, "
+    "dan pokok pinjaman bukan pendapatan maupun beban."
+)
+
+_EVENT_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["event_code", "confidence", "reason", "alternatives", "missing_information"],
+    "properties": {
+        "event_code": {"type": "string", "enum": list(ECONOMIC_EVENT_CODES)},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "reason": {"type": "string"},
+        "alternatives": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["event_code", "confidence"],
+                "properties": {
+                    "event_code": {"type": "string", "enum": list(ECONOMIC_EVENT_CODES)},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+            },
+        },
+        "missing_information": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+    },
+}
+
+
+def classify_economic_event_contract(payload: dict[str, Any]) -> PromptContract:
+    """plan.md §14.3: deskripsi, nominal, arah, jenis dokumen, pihak lawan."""
+
+    return PromptContract(
+        name="classify_economic_event",
+        version=CLASSIFY_ECONOMIC_EVENT_VERSION,
+        system=_EVENT_SYSTEM,
+        payload={
+            "description": payload.get("description"),
+            "amount": payload.get("amount"),
+            "direction": payload.get("direction"),
+            "document_type": payload.get("document_type"),
+            "counterparty": payload.get("counterparty"),
+            "business_context": payload.get("business_context"),
+            "candidate_events": list(ECONOMIC_EVENT_CODES),
+        },
+        json_schema=_EVENT_SCHEMA,
+        max_output_tokens=400,
     )

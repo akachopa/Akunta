@@ -130,7 +130,9 @@ class StructuredProvider(AIProviderInterface):
         )
 
     def classify_economic_event(self, payload: dict[str, Any]) -> ProviderResult:
-        raise AIProviderError("Economic event classifier adalah Phase 8.")
+        from app.prompts import classify_economic_event_contract
+
+        return self._run(classify_economic_event_contract(payload))
 
     def _run(self, contract: PromptContract) -> ProviderResult:
         started = time.perf_counter()
@@ -175,4 +177,4 @@ class NullProvider(AIProviderInterface):
         raise AIProviderError("Tidak ada provider AI aktif untuk ekstraksi dokumen.")
 
     def classify_economic_event(self, payload: dict[str, Any]) -> ProviderResult:
-        raise AIProviderError("Economic event classifier adalah Phase 8.")
+        raise AIProviderError("Tidak ada provider AI aktif untuk klasifikasi peristiwa ekonomi.")

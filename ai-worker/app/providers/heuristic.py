@@ -328,7 +328,86 @@ class HeuristicProvider(AIProviderInterface):
         )
 
     def classify_economic_event(self, payload: dict[str, Any]) -> ProviderResult:
-        raise AIProviderError("Economic event classifier adalah Phase 8.")
+        started = time.perf_counter()
+
+        description = str(payload.get("description") or "").lower()
+        direction = str(payload.get("direction") or "").lower()
+        document_type = str(payload.get("document_type") or "")
+
+        event_code, confidence, reason, missing = self._event_from_text(
+            description, direction, document_type
+        )
+
+        return ProviderResult(
+            data={
+                "event_code": event_code,
+                "confidence": confidence,
+                "reason": reason,
+                "alternatives": [],
+                "missing_information": missing,
+            },
+            provider=self.name,
+            model=self.name,
+            prompt_version=RULES_VERSION,
+            latency_ms=int((time.perf_counter() - started) * 1000),
+            usage=ProviderUsage(),
+        )
+
+    def _event_from_text(
+        self,
+        description: str,
+        direction: str,
+        document_type: str,
+    ) -> tuple[str, float, str, list[str]]:
+        """Heuristic peristiwa ekonomi, selaras dengan klasifikasi Laravel Phase 8."""
+
+        keyword_events: tuple[tuple[tuple[str, ...], str, str], ...] = (
+            (("biaya admin", "biaya bank", "admin bank", "monthly fee"), "BANK_FEE", "biaya administrasi bank"),
+            (("setoran tunai", "setor tunai", "deposit tunai"), "CASH_TO_BANK_TRANSFER", "setoran tunai"),
+            (("tarik tunai", "penarikan tunai", "atm withdrawal"), "BANK_TO_CASH_TRANSFER", "penarikan tunai"),
+            (("transfer antar rekening", "pindah buku", "internal transfer"), "BANK_TRANSFER_INTERNAL", "transfer internal"),
+        )
+
+        for needles, code, label in keyword_events:
+            if any(needle in description for needle in needles):
+                return code, 0.93, f"Keterangan memuat {label}.", []
+
+        by_document: dict[str, tuple[str, float, str]] = {
+            "qris_settlement": ("SALE_CASH", 0.93, "Settlement penjualan tunai."),
+            "ewallet_settlement": ("SALE_CASH", 0.93, "Settlement penjualan tunai."),
+            "pos_report": ("SALE_CASH", 0.93, "Laporan penjualan tunai."),
+            "marketplace_report": ("SALE_CASH", 0.93, "Laporan penjualan marketplace."),
+            "sales_invoice": ("SALE_CREDIT", 0.93, "Faktur penjualan."),
+            "purchase_invoice": ("PURCHASE_INVENTORY_CREDIT", 0.93, "Faktur pembelian."),
+            "consignment_report": ("SALE_CONSIGNMENT", 0.92, "Laporan konsinyasi."),
+            "utility_bill": ("UTILITY_EXPENSE", 0.93, "Tagihan utilitas."),
+            "payroll": ("SALARY_EXPENSE", 0.93, "Dokumen gaji."),
+            "advertising_invoice": ("MARKETING_EXPENSE", 0.93, "Faktur iklan."),
+            "shipping_receipt": ("SHIPPING_EXPENSE", 0.93, "Bukti pengiriman."),
+            "rent_receipt": ("RENT_EXPENSE", 0.93, "Bukti sewa."),
+            "repair_receipt": ("REPAIR_MAINTENANCE_EXPENSE", 0.93, "Bukti perbaikan."),
+            "tax_document": ("TAX_PAYMENT", 0.90, "Dokumen pajak."),
+            "capital_deposit": ("OWNER_CAPITAL", 0.93, "Setoran modal."),
+        }
+
+        if document_type in by_document:
+            code, confidence, reason = by_document[document_type]
+            return code, confidence, reason, []
+
+        if direction == "inflow":
+            return (
+                "OTHER_OPERATING_INCOME",
+                0.60,
+                "Arah uang masuk, tetapi jenis peristiwanya belum dapat dipastikan.",
+                ["Jenis peristiwa ekonomi untuk penerimaan ini belum dapat dipastikan."],
+            )
+
+        return (
+            "OTHER_OPERATING_EXPENSE",
+            0.60,
+            "Arah uang keluar, tetapi jenis peristiwanya belum dapat dipastikan.",
+            ["Jenis peristiwa ekonomi untuk pengeluaran ini belum dapat dipastikan."],
+        )
 
     def _score_types(self, haystack: str) -> dict[str, int]:
         scores: dict[str, int] = {}

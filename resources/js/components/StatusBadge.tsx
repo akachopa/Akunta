@@ -35,7 +35,8 @@ const TONE: Record<string, string> = {
     pending: 'bg-slate-100 text-slate-600',
     running: 'bg-sky-100 text-sky-800',
     succeeded: 'bg-teal-100 text-teal-800',
-    skipped: 'bg-slate-200 text-slate-700',
+    duplicate: 'bg-amber-100 text-amber-800',
+    related: 'bg-sky-100 text-sky-800',
 };
 
 const LABEL: Record<string, string> = {

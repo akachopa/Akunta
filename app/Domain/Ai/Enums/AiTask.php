@@ -16,12 +16,14 @@ enum AiTask: string
 {
     case ClassifyDocument = 'classify_document';
     case ExtractDocument = 'extract_document';
+    case ClassifyEconomicEvent = 'classify_economic_event';
 
     public function label(): string
     {
         return match ($this) {
             self::ClassifyDocument => 'Klasifikasi Dokumen',
             self::ExtractDocument => 'Ekstraksi Dokumen',
+            self::ClassifyEconomicEvent => 'Klasifikasi Peristiwa Ekonomi',
         };
     }
 

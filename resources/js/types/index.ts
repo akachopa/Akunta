@@ -251,6 +251,18 @@ export interface TransactionSummary {
     direction_label: string;
     currency: string;
     counterparty_name: string | null;
+    counterparty_entity: {
+        id: string;
+        name: string;
+        type: string;
+        type_label: string;
+        confirmed: boolean;
+    } | null;
+    economic_event: {
+        id: string;
+        code: string;
+        name: string;
+    } | null;
     source_type: TransactionSourceType;
     source_type_label: string;
     status: string;
@@ -289,9 +301,44 @@ export interface TransactionEvidence {
     note: string | null;
 }
 
+export interface TransactionRelationView {
+    type: 'duplicate' | 'related';
+    type_label: string;
+    confidence: string;
+    reasons: string[];
+    other: {
+        id: string;
+        reference: string;
+        description: string;
+        amount: string;
+    } | null;
+}
+
+export interface TransactionJournalLine {
+    account_code: string | null;
+    account_name: string | null;
+    account_type: AccountType | null;
+    debit: string;
+    credit: string;
+    description: string | null;
+}
+
+export interface TransactionJournal {
+    id: string;
+    entry_number: string;
+    status: JournalEntryStatus;
+    status_label: string;
+    total_debit: string;
+    total_credit: string;
+    lines: TransactionJournalLine[];
+}
+
 export interface TransactionDetail extends TransactionSummary {
     source: TransactionSource | null;
     evidence: TransactionEvidence[];
+    relations: TransactionRelationView[];
+    journal: TransactionJournal | null;
+    event_options: { value: string; label: string }[];
 }
 
 export interface TrialBalanceRow {

@@ -20,9 +20,7 @@ interface Props {
 
 /*
  * Arah aliran nilai ditampilkan sebagai tanda pada nominal, bukan sebagai kolom debit dan
- * kredit. plan.md §44.3 dan §44.4 melarang menyamakan kas masuk dengan pendapatan, dan
- * kolom debit/kredit di halaman ini akan menyiratkan pemetaan akun yang baru dikerjakan
- * Phase 8 dan Phase 9.
+ * kredit. plan.md §44.3 dan §44.4 melarang menyamakan kas masuk dengan pendapatan.
  */
 function AmountCell({ transaction }: { transaction: TransactionSummary }) {
     const inflow = transaction.direction === 'inflow';
@@ -116,6 +114,7 @@ export default function TransactionIndex({
                                         <th className="py-2 pr-4">Referensi</th>
                                         <th className="py-2 pr-4">Tanggal</th>
                                         <th className="py-2 pr-4">Keterangan</th>
+                                        <th className="py-2 pr-4">Peristiwa</th>
                                         <th className="py-2 pr-4 text-right">Nominal</th>
                                         <th className="py-2 pr-4">Sumber</th>
                                         <th className="py-2 pr-4">Status</th>
@@ -150,6 +149,9 @@ export default function TransactionIndex({
                                                         {transaction.review_reason}
                                                     </span>
                                                 )}
+                                            </td>
+                                            <td className="py-2 pr-4 text-slate-600">
+                                                {transaction.economic_event?.name ?? '—'}
                                             </td>
                                             <td className="py-2 pr-4 text-right whitespace-nowrap">
                                                 <AmountCell transaction={transaction} />

@@ -4,22 +4,28 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Accounting\Enums\EconomicEventCode;
+use App\Domain\Business\Enums\PermissionSlug;
 use App\Domain\Business\Models\Business;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Transactions\Enums\TransactionFilter;
+use App\Domain\Transactions\Enums\TransactionStatus;
 use App\Domain\Transactions\Models\Transaction;
 use App\Http\Presenters\TransactionPresenter;
+use App\Models\User;
+use App\Services\Accounting\JournalProposalService;
+use App\Services\EconomicEvents\EconomicEventClassificationService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Daftar transaksi canonical hasil normalisasi (plan.md §8.2, §37 Phase 5).
+ * Daftar transaksi canonical hasil normalisasi (plan.md §8.2, §37 Phase 5–9).
  *
- * Halaman ini menampilkan apa yang terbaca dari dokumen, bukan penafsiran akuntansinya.
- * Tidak ada kolom akun maupun debit/kredit di sini: pemetaannya adalah pekerjaan Phase 8
- * dan Phase 9, dan menampilkan kolom kosong untuknya akan membuat user mengira sistem gagal
- * mengisinya (plan.md §44.3, §44.4).
+ * Halaman ini menampilkan perpindahan nilai dari dokumen beserta pihak lawan, peristiwa
+ * ekonomi, dan usulan jurnal draft. Posting tetap menunggu akuntan (plan.md §15.2).
  */
 class TransactionController extends Controller
 {
@@ -50,7 +56,7 @@ class TransactionController extends Controller
         }
 
         $transactions = $query
-            ->with(['source.document'])
+            ->with(['source.document', 'counterpartyEntity', 'economicEvent'])
             ->orderByDesc('transaction_date')
             ->orderBy('reference')
             ->paginate(50)
@@ -85,16 +91,65 @@ class TransactionController extends Controller
         ]);
     }
 
-    public function show(Business $business, Transaction $transaction): Response
+    public function show(Request $request, Business $business, Transaction $transaction): Response
     {
         $this->authorize('view', $transaction);
 
-        $transaction->load(['source.document', 'evidence']);
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $transaction->load([
+            'source.document',
+            'evidence',
+            'counterpartyEntity',
+            'economicEvent',
+            'outgoingRelations.toTransaction',
+            'incomingRelations.fromTransaction',
+            'journalEntries.lines.account',
+        ]);
 
         return Inertia::render('transactions/Show', [
             'business' => ['id' => $business->getKey(), 'name' => $business->name],
             'transaction' => $this->presenter->detail($transaction),
+            'can' => [
+                'classify' => $user->hasBusinessPermission($business, PermissionSlug::DocumentReview),
+            ],
         ]);
+    }
+
+    public function classify(Request $request, Business $business, Transaction $transaction): RedirectResponse
+    {
+        $this->authorize('view', $transaction);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        abort_unless(
+            $user->hasBusinessPermission($business, PermissionSlug::DocumentReview),
+            403
+        );
+
+        $validated = $request->validate([
+            'event_code' => ['required', 'string', Rule::in(EconomicEventCode::values())],
+            'reason' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $event = EconomicEventCode::from($validated['event_code']);
+
+        app(EconomicEventClassificationService::class)->correct(
+            $transaction,
+            $event,
+            $user,
+            $validated['reason'] ?? null,
+        );
+
+        app(JournalProposalService::class)->propose($transaction->refresh());
+
+        if ($transaction->status->canTransitionTo(TransactionStatus::Ready)) {
+            $transaction->transitionTo(TransactionStatus::Ready, ['review_reason' => null]);
+        }
+
+        return back()->with('success', 'Klasifikasi peristiwa ekonomi disimpan.');
     }
 
     /**

@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 
 import Card from '@/components/Card';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
@@ -9,6 +9,7 @@ import type { TransactionDetail } from '@/types';
 interface Props {
     business: { id: string; name: string };
     transaction: TransactionDetail;
+    can?: { classify: boolean };
 }
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
@@ -20,9 +21,13 @@ function Detail({ label, children }: { label: string; children: React.ReactNode 
     );
 }
 
-export default function TransactionShow({ business, transaction }: Props) {
+export default function TransactionShow({ business, transaction, can }: Props) {
     const inflow = transaction.direction === 'inflow';
     const documentSource = transaction.source?.document ?? null;
+    const form = useForm({
+        event_code: transaction.economic_event?.code ?? '',
+        reason: '',
+    });
 
     return (
         <>
@@ -55,7 +60,20 @@ export default function TransactionShow({ business, transaction }: Props) {
                         </Detail>
 
                         <Detail label="Pihak Lawan">
-                            {transaction.counterparty_name ?? 'Belum teridentifikasi'}
+                            {transaction.counterparty_entity ? (
+                                <Link
+                                    href={`/businesses/${business.id}/entities/${transaction.counterparty_entity.id}`}
+                                    className="text-teal-700 hover:underline"
+                                >
+                                    {transaction.counterparty_entity.name}
+                                </Link>
+                            ) : (
+                                (transaction.counterparty_name ?? 'Belum teridentifikasi')
+                            )}
+                        </Detail>
+
+                        <Detail label="Peristiwa Ekonomi">
+                            {transaction.economic_event?.name ?? 'Belum diklasifikasi'}
                         </Detail>
 
                         <Detail label="Jenis Sumber">{transaction.source_type_label}</Detail>
@@ -76,16 +94,56 @@ export default function TransactionShow({ business, transaction }: Props) {
                         )}
                     </dl>
 
-                    {/*
-                     * plan.md §44.3 dan §44.4: transaksi belum menyatakan pendapatan maupun
-                     * beban. Kalimat ini ada supaya user tidak membaca "nilai masuk" sebagai
-                     * penjualan yang sudah diakui.
-                     */}
                     <p className="mt-4 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-500">
                         Transaksi ini menggambarkan perpindahan nilai yang terbaca dari dokumen.
-                        Penentuan akun dan jurnalnya dikerjakan pada tahap berikutnya.
+                        Jurnal di bawah adalah usulan draft; posting tetap menunggu akuntan.
                     </p>
                 </Card>
+
+                {can?.classify && (
+                    <Card
+                        title="Koreksi Peristiwa Ekonomi"
+                        description="Koreksi reviewer tersimpan dan dipakai untuk usulan jurnal berikutnya."
+                    >
+                        <form
+                            className="flex flex-wrap gap-2"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                form.post(
+                                    `/businesses/${business.id}/transactions/${transaction.id}/classify`,
+                                );
+                            }}
+                        >
+                            <select
+                                className="rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                value={form.data.event_code}
+                                onChange={(event) =>
+                                    form.setData('event_code', event.target.value)
+                                }
+                            >
+                                <option value="">Pilih peristiwa</option>
+                                {transaction.event_options.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </select>
+                            <input
+                                className="min-w-56 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                placeholder="Alasan (opsional)"
+                                value={form.data.reason}
+                                onChange={(event) => form.setData('reason', event.target.value)}
+                            />
+                            <button
+                                type="submit"
+                                className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white"
+                                disabled={form.processing || form.data.event_code === ''}
+                            >
+                                Simpan klasifikasi
+                            </button>
+                        </form>
+                    </Card>
+                )}
 
                 <Card
                     title="Asal Transaksi"
@@ -152,6 +210,89 @@ export default function TransactionShow({ business, transaction }: Props) {
                                 </li>
                             ))}
                         </ul>
+                    )}
+                </Card>
+
+                <Card
+                    title="Dokumen Terkait"
+                    description="Duplikat adalah bukti yang sama; terkait adalah bukti berbeda untuk peristiwa yang sama."
+                >
+                    {transaction.relations.length === 0 ? (
+                        <p className="text-sm text-slate-500">Belum ada hubungan yang tercatat.</p>
+                    ) : (
+                        <ul className="divide-y divide-slate-100">
+                            {transaction.relations.map((relation, index) => (
+                                <li key={`${relation.type}-${index}`} className="py-2 text-sm">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <StatusBadge
+                                            status={relation.type}
+                                            label={relation.type_label}
+                                        />
+                                        <ConfidenceBadge confidence={relation.confidence} />
+                                        {relation.other && (
+                                            <Link
+                                                href={`/businesses/${business.id}/transactions/${relation.other.id}`}
+                                                className="font-mono text-teal-700 hover:underline"
+                                            >
+                                                {relation.other.reference}
+                                            </Link>
+                                        )}
+                                    </div>
+                                    <p className="mt-1 text-xs text-slate-500">
+                                        {(relation.reasons ?? []).join(' ')}
+                                    </p>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </Card>
+
+                <Card
+                    title="Usulan Jurnal"
+                    description="Rule engine menulis draft. LLM tidak menulis baris jurnal, dan posting menunggu akuntan."
+                >
+                    {transaction.journal === null ? (
+                        <p className="text-sm text-slate-500">Belum ada usulan jurnal.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            <dl className="grid gap-4 sm:grid-cols-3">
+                                <Detail label="Nomor">{transaction.journal.entry_number}</Detail>
+                                <Detail label="Status">{transaction.journal.status_label}</Detail>
+                                <Detail label="Seimbang">
+                                    {transaction.journal.total_debit ===
+                                    transaction.journal.total_credit
+                                        ? 'Ya'
+                                        : 'Tidak'}
+                                </Detail>
+                            </dl>
+                            <table className="min-w-full text-sm">
+                                <thead>
+                                    <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                                        <th className="py-1">Akun</th>
+                                        <th className="py-1 text-right">Debit</th>
+                                        <th className="py-1 text-right">Kredit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {transaction.journal.lines.map((line, index) => (
+                                        <tr key={index} className="border-t border-slate-100">
+                                            <td className="py-1">
+                                                <span className="font-mono text-xs">
+                                                    {line.account_code}
+                                                </span>{' '}
+                                                {line.account_name}
+                                            </td>
+                                            <td className="py-1 text-right font-mono">
+                                                {line.debit}
+                                            </td>
+                                            <td className="py-1 text-right font-mono">
+                                                {line.credit}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </Card>
             </div>

@@ -9,6 +9,7 @@ use App\Domain\Accounting\Models\ChartOfAccount;
 use App\Domain\Accounting\Models\JournalEntry;
 use App\Domain\Business\Models\Business;
 use App\Domain\Documents\Models\Document;
+use App\Domain\Entities\Models\Entity;
 use App\Domain\Tenancy\TenantContext;
 use App\Domain\Transactions\Models\Transaction;
 use App\Models\PersonalAccessToken;
@@ -16,6 +17,7 @@ use App\Policies\AccountingPeriodPolicy;
 use App\Policies\BusinessPolicy;
 use App\Policies\ChartOfAccountPolicy;
 use App\Policies\DocumentPolicy;
+use App\Policies\EntityPolicy;
 use App\Policies\JournalEntryPolicy;
 use App\Policies\TransactionPolicy;
 use App\Services\Ai\AiWorkerClient;
@@ -64,6 +66,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(AccountingPeriod::class, AccountingPeriodPolicy::class);
         Gate::policy(Document::class, DocumentPolicy::class);
         Gate::policy(Transaction::class, TransactionPolicy::class);
+        Gate::policy(Entity::class, EntityPolicy::class);
 
         /*
          * Atribut yang dikirim ke model tetapi tidak fillable akan melempar exception di
