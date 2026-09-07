@@ -173,6 +173,41 @@ def test_subtotal_label_is_not_read_as_total() -> None:
     assert _value(outcome, "total") == "5550000.00"
 
 
+def test_issuer_is_read_from_indonesian_invoice_labels() -> None:
+    """Faktur berbahasa Indonesia menyebut penerbitnya dengan beberapa kata berbeda."""
+    for label in ("Penerbit", "Nama Penerbit", "Pemasok", "Penjual"):
+        text = INVOICE_TEXT.replace("Dari: PT Sumber Makmur", f"{label}: PT Sumber Makmur")
+
+        outcome = _extract(InvoiceExtractor(), "purchase_invoice", _text_pages(text))
+
+        assert _value(outcome, "issuer_name") == "PT Sumber Makmur"
+        assert outcome.valid
+
+
+def test_issuer_is_read_from_tabular_invoice() -> None:
+    """Faktur yang datang sebagai CSV atau spreadsheet berbentuk label-nilai per baris."""
+    outcome = _extract(
+        InvoiceExtractor(),
+        "purchase_invoice",
+        _row_pages(
+            [
+                ["Nomor Faktur", "INV/2026/0012"],
+                ["Tanggal Faktur", "2026-02-10"],
+                ["Penerbit", "PT Sumber Kertas"],
+                ["Mata Uang", "IDR"],
+                ["Subtotal", "1000000.00"],
+                ["PPN", "110000.00"],
+                ["Total", "1110000.00"],
+            ]
+        ),
+    )
+
+    assert outcome.valid
+    assert _value(outcome, "issuer_name") == "PT Sumber Kertas"
+    assert _value(outcome, "document_number") == "INV/2026/0012"
+    assert _value(outcome, "total") == "1110000.00"
+
+
 def test_invoice_with_inconsistent_total_is_invalid() -> None:
     """Aritmetika yang tidak cocok menandakan angka salah baca."""
     broken = INVOICE_TEXT.replace("Total: Rp 5.550.000", "Total: Rp 5.000.000")

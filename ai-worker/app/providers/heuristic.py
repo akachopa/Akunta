@@ -145,8 +145,12 @@ _LABELS: dict[str, tuple[str, ...]] = {
     "due_date": ("tanggal jatuh tempo", "jatuh tempo", "due date"),
     "issuer_name": (
         "diterbitkan oleh",
+        "nama penerbit",
         "nama penjual",
+        "nama pemasok",
+        "penerbit",
         "penjual",
+        "pemasok",
         "supplier",
         "vendor",
         "seller",
