@@ -217,13 +217,19 @@ class Document extends Model implements KeepsAuditSnapshot
     /**
      * Ekstraksi terakhir yang diterima, satu-satunya sumber nilai yang sah.
      *
+     * Diurutkan, bukan memakai `latestOfMany('attempt')`. Eloquent selalu menambahkan
+     * primary key sebagai pemecah seri pada relasi one-of-many, dan `MAX(uuid)` tidak ada
+     * di PostgreSQL. Pemecah seri itu pun tidak diperlukan: pasangan
+     * `(document_id, attempt)` sudah unik di database, sehingga percobaan tertinggi selalu
+     * tunggal.
+     *
      * @return HasOne<DocumentExtraction, $this>
      */
     public function acceptedExtraction(): HasOne
     {
         return $this->hasOne(DocumentExtraction::class)
             ->where('status', ExtractionStatus::Accepted->value)
-            ->latestOfMany('attempt');
+            ->orderByDesc('attempt');
     }
 
     /**
