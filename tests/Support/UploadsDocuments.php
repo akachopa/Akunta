@@ -326,6 +326,61 @@ trait UploadsDocuments
     }
 
     /**
+     * Rekening koran yang sudah melewati seluruh pipeline hingga menghasilkan transaksi.
+     *
+     * Dua mutasi dengan identitas saldo yang konsisten: 5.000.000 + 2.000.000 − 500.000 =
+     * 6.500.000. Dipakai banyak test Phase 5 karena rekening koran adalah satu-satunya
+     * sumber yang satu dokumennya menghasilkan banyak transaksi.
+     *
+     * @param  array<int, array<string, mixed>>|null  $rows
+     * @param  array<int, array<string, mixed>>|null  $fields
+     */
+    protected function normalizedBankStatement(
+        Business $business,
+        User $owner,
+        ?array $rows = null,
+        ?array $fields = null,
+    ): Document {
+        $document = $this->ingestDocument($business, $owner);
+
+        $this->fakeParserSuccess();
+        $this->fakeClassifierSuccess('bank_statement', 0.97);
+        $this->fakeExtractorResponse(
+            $fields ?? [
+                $this->extractedField('bank_name', 'Bank Mandiri', 0.96),
+                $this->extractedField('account_number', '1230004567', 0.96),
+                $this->extractedField('period_end', '2026-01-31', 0.96),
+                $this->extractedField('opening_balance', '5000000.00', 0.96),
+                $this->extractedField('closing_balance', '6500000.00', 0.96),
+            ],
+            rows: $rows ?? [
+                [
+                    'date' => '2026-01-15',
+                    'description' => 'SETORAN TUNAI',
+                    'debit' => null,
+                    'credit' => '2000000.00',
+                    'balance' => '7000000.00',
+                    'page_number' => 1,
+                    'source_text' => '15/01 SETORAN TUNAI 2.000.000',
+                ],
+                [
+                    'date' => '2026-01-20',
+                    'description' => 'BIAYA ADMIN',
+                    'debit' => '500000.00',
+                    'credit' => null,
+                    'balance' => '6500000.00',
+                    'page_number' => 1,
+                    'source_text' => '20/01 BIAYA ADMIN 500.000',
+                ],
+            ],
+            confidence: 0.96,
+            extractor: 'bank_statement',
+        );
+
+        return $this->runIntelligencePipeline($document);
+    }
+
+    /**
      * Menjalankan tahap normalisasi saja, untuk dokumen yang masuk NORMALIZING lewat review.
      */
     protected function runNormalization(Document $document): Document
