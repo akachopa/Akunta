@@ -152,6 +152,14 @@ class Transaction extends Model implements KeepsAuditSnapshot
     }
 
     /**
+     * @return HasMany<TransactionTag, $this>
+     */
+    public function tags(): HasMany
+    {
+        return $this->hasMany(TransactionTag::class)->orderBy('tag');
+    }
+
+    /**
      * @return MorphMany<AiPrediction, $this>
      */
     public function predictions(): MorphMany

@@ -7,7 +7,7 @@ namespace App\Domain\Business\Enums;
 /**
  * Permission granular yang dipakai policy.
  *
- * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–5.
+ * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–10.
  * Permission untuk rekonsiliasi dan closing ditambahkan ketika phase-nya dikerjakan, agar
  * tidak ada permission menggantung tanpa penegakan.
  */
@@ -32,11 +32,12 @@ enum PermissionSlug: string
     case DocumentReview = 'document.review';
 
     /*
-     * Transaksi canonical hasil normalisasi (plan.md §37 Phase 5). Baru hak melihat yang
-     * ada: Phase 5 tidak memiliki tindakan user atas transaksi. Approve dan reject pada
-     * plan.md §29.4 ditambahkan bersama review center Phase 10 yang menegakkannya.
+     * Transaksi canonical hasil normalisasi (plan.md §37 Phase 5). Approve, reject, dan
+     * koreksi adalah Review Center Phase 10 (plan.md §29.4, §4.2, §4.4).
      */
     case TransactionView = 'transaction.view';
+    case TransactionReview = 'transaction.review';
+    case TransactionApprove = 'transaction.approve';
 
     case EntityView = 'entity.view';
     case EntityManage = 'entity.manage';
@@ -78,6 +79,8 @@ enum PermissionSlug: string
             self::DocumentManage => 'Memproses ulang dan mengarsipkan dokumen',
             self::DocumentReview => 'Meninjau dan mengoreksi hasil pembacaan dokumen',
             self::TransactionView => 'Melihat transaksi hasil normalisasi dokumen',
+            self::TransactionReview => 'Mengoreksi, menandai, dan berkomentar pada transaksi',
+            self::TransactionApprove => 'Menyetujui atau menolak transaksi',
             self::EntityView => 'Melihat daftar pihak lawan transaksi',
             self::EntityManage => 'Mengonfirmasi dan menggabungkan entity',
             self::BankAccountView => 'Melihat rekening bank',

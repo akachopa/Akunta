@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Accounting\Exceptions\AccountingException;
 use App\Domain\Documents\Exceptions\DocumentException;
+use App\Domain\Review\Exceptions\ReviewException;
 use App\Domain\Tenancy\Exceptions\CrossTenantWriteAttempt;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveTenant;
@@ -71,6 +72,17 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return back()->withInput()->withErrors(['document' => $exception->getMessage()]);
+        });
+
+        $exceptions->render(function (ReviewException $exception, Request $request): ?Response {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'errors' => ['review' => [$exception->getMessage()]],
+                ], 422);
+            }
+
+            return back()->withInput()->withErrors(['review' => $exception->getMessage()]);
         });
 
         $exceptions->render(function (CrossTenantWriteAttempt $exception, Request $request): ?Response {

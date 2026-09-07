@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\EntityController;
 use App\Http\Controllers\Api\V1\JournalController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\TransactionController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,8 +18,8 @@ use Illuminate\Support\Facades\Route;
  * Prefix /api/v1 dikonfigurasi di bootstrap/app.php (plan.md §29).
  *
  * Endpoint yang tersedia: auth, businesses, accounts, journals, periods, trial balance,
- * documents, review dokumen, transaksi, dan entity. Tindakan approve/reject transaksi
- * (plan.md §29.4) dan reconciliation §29.5 menunggu Phase 10–11.
+ * documents, review dokumen, transaksi, Review Center, dan entity. Reconciliation
+ * §29.5 dan AI analyst §29.10 menunggu Phase 11 dan 14.
  */
 
 Route::post('auth/login', [AuthController::class, 'login'])
@@ -44,6 +45,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('businesses/{business}/transactions', [TransactionController::class, 'index'])
             ->name('api.transactions.index');
 
+        Route::get('businesses/{business}/review-queue', [ReviewController::class, 'index'])
+            ->name('api.review-queue.index');
+
         Route::get('businesses/{business}/entities', [EntityController::class, 'index'])
             ->name('api.entities.index');
 
@@ -63,12 +67,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('api.documents.reprocess');
     Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('api.documents.archive');
 
-    // plan.md §29.8 sebatas yang menyangkut dokumen; review transaksi menyusul pada Phase 10.
+    // plan.md §29.8: review dokumen (Phase 4) dan antrean Review Center (Phase 10).
     Route::post('documents/{document}/review/type', [DocumentController::class, 'confirmType'])->name('api.documents.review.type');
     Route::post('documents/{document}/review/fields', [DocumentController::class, 'confirmFields'])->name('api.documents.review.fields');
     Route::post('documents/{document}/review/approve', [DocumentController::class, 'approve'])->name('api.documents.review.approve');
 
     Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('api.transactions.show');
+    Route::post('transactions/{transaction}/approve', [TransactionController::class, 'approve'])->name('api.transactions.approve');
+    Route::post('transactions/{transaction}/reject', [TransactionController::class, 'reject'])->name('api.transactions.reject');
+    Route::post('transactions/{transaction}/post', [TransactionController::class, 'post'])->name('api.transactions.post');
+    Route::post('transactions/{transaction}/classify', [TransactionController::class, 'classify'])->name('api.transactions.classify');
     Route::get('entities/{entity}', [EntityController::class, 'show'])->name('api.entities.show');
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])->name('api.journals.show');

@@ -338,7 +338,48 @@ export interface TransactionDetail extends TransactionSummary {
     evidence: TransactionEvidence[];
     relations: TransactionRelationView[];
     journal: TransactionJournal | null;
+    tags: string[];
     event_options: { value: string; label: string }[];
+}
+
+export interface ReviewTaskSummary {
+    id: string;
+    subject_type: 'transaction' | 'document';
+    subject_type_label: string;
+    kind: string;
+    kind_label: string;
+    status: string;
+    status_label: string;
+    reason: string | null;
+    opened_at: string | null;
+    completed_at: string | null;
+    transaction: TransactionSummary | null;
+    document: {
+        id: string;
+        reference: string;
+        original_filename: string;
+        processing_status: string;
+        processing_status_label: string;
+        review_reason: string | null;
+    } | null;
+}
+
+export interface ReviewTaskDetail extends ReviewTaskSummary {
+    transaction_detail: TransactionDetail | null;
+    actions: {
+        id: string;
+        action: string;
+        action_label: string;
+        reason: string | null;
+        actor_name: string | null;
+        created_at: string | null;
+    }[];
+    comments: {
+        id: string;
+        body: string;
+        author_name: string | null;
+        created_at: string | null;
+    }[];
 }
 
 export interface TrialBalanceRow {

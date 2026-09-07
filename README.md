@@ -6,15 +6,14 @@ Akunta menghasilkan pembukuan double-entry yang benar, dan akuntan memverifikasi
 `plan.md` adalah source of truth untuk produk ini. Status implementasi per phase dicatat
 di [`docs/IMPLEMENTATION_CHECKLIST.md`](docs/IMPLEMENTATION_CHECKLIST.md).
 
-**Status saat ini: Phase 0–9 selesai.** Fondasinya multi-tenant, accounting-safe, punya
+**Status saat ini: Phase 0–10 selesai.** Fondasinya multi-tenant, accounting-safe, punya
 source document yang immutable dan queue processing, membaca isi dokumen menjadi field
 terstruktur, menormalisasi transaksi canonical, meresolusi pihak lawan, mendeteksi
-duplikat/dokumen terkait, mengklasifikasi peristiwa ekonomi, dan mengusulkan jurnal draft
-dari accounting rule. Posting jurnal tetap menunggu akuntan (`plan.md` §15.2). Review
-Center (Phase 10) belum dikerjakan.
+duplikat/dokumen terkait, mengklasifikasi peristiwa ekonomi, mengusulkan jurnal draft
+dari accounting rule, dan meninjau transaksi di Review Center. Menyetujui transaksi tidak
+memposting jurnal (`plan.md` §15.2).
 
-Phase 10 ke atas belum dikerjakan: antrean review transaksi, rekonsiliasi, laporan
-lengkap, closing, dan AI analyst.
+Phase 11 ke atas belum dikerjakan: rekonsiliasi, laporan lengkap, closing, dan AI analyst.
 
 ## Arsitektur
 
@@ -34,8 +33,8 @@ SQLite.
 ### Struktur direktori
 
 ```
-app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Transactions, Tenancy, Audit)
-app/Services/        Logika bisnis: posting journal, provisioning, pemrosesan dokumen, normalisasi, entity, matching, economic event, accounting rules
+app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Transactions, Review, Tenancy, Audit)
+app/Services/        Logika bisnis: posting journal, provisioning, pemrosesan dokumen, normalisasi, entity, matching, economic event, accounting rules, review
 app/Jobs/            Queue job, termasuk pipeline pemrosesan dokumen
 app/Http/            Controller web (Inertia) dan API v1, middleware, form request, presenter
 ai-worker/           FastAPI worker: parser, classifier dokumen, extractor, klasifikasi peristiwa ekonomi

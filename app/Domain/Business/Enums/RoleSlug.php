@@ -33,7 +33,7 @@ enum RoleSlug: string
     }
 
     /**
-     * Permission per role, dibatasi pada kapabilitas yang sudah ada di Phase 0–5.
+     * Permission per role, dibatasi pada kapabilitas yang sudah ada di Phase 0–10.
      *
      * plan.md §4.2 menyatakan owner dapat "initiate closing" tetapi tidak menyebut
      * reopen; plan.md §4.4 memberikan "lock/reopen period" kepada accountant. Pembagian
@@ -54,6 +54,10 @@ enum RoleSlug: string
      * mereka masukkan sendiri lewat dokumen, dan staff yang tidak dapat melihatnya tidak
      * dapat mengetahui bahwa unggahannya sudah terbaca dengan benar (plan.md §4.3).
      *
+     * Approve transaksi: plan.md §4.2 memberi owner hak "approve transaksi", §4.4 memberi
+     * accountant hak "review & koreksi". Staff tidak: §4.3 membatasinya pada input dan
+     * melihat.
+     *
      * @return array<int, PermissionSlug>
      */
     public function permissions(): array
@@ -71,6 +75,8 @@ enum RoleSlug: string
                 PermissionSlug::DocumentManage,
                 PermissionSlug::DocumentReview,
                 PermissionSlug::TransactionView,
+                PermissionSlug::TransactionReview,
+                PermissionSlug::TransactionApprove,
                 PermissionSlug::EntityView,
                 PermissionSlug::EntityManage,
                 PermissionSlug::BankAccountView,
@@ -108,6 +114,8 @@ enum RoleSlug: string
                 PermissionSlug::DocumentManage,
                 PermissionSlug::DocumentReview,
                 PermissionSlug::TransactionView,
+                PermissionSlug::TransactionReview,
+                PermissionSlug::TransactionApprove,
                 PermissionSlug::EntityView,
                 PermissionSlug::EntityManage,
                 PermissionSlug::BankAccountView,

@@ -14,6 +14,7 @@ use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\DocumentReviewController;
 use App\Http\Controllers\EntityController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TrialBalanceController;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +84,18 @@ Route::middleware('auth')->group(function (): void {
             Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
             Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
             Route::post('transactions/{transaction}/classify', [TransactionController::class, 'classify'])->name('transactions.classify');
+            Route::post('transactions/{transaction}/approve', [TransactionController::class, 'approve'])->name('transactions.approve');
+            Route::post('transactions/{transaction}/reject', [TransactionController::class, 'reject'])->name('transactions.reject');
+            Route::post('transactions/{transaction}/post', [TransactionController::class, 'post'])->name('transactions.post');
+
+            Route::get('review', [ReviewController::class, 'index'])->name('review.index');
+            Route::get('review/{review}', [ReviewController::class, 'show'])->name('review.show');
+            Route::post('review/{review}/approve', [ReviewController::class, 'approve'])->name('review.approve');
+            Route::post('review/{review}/reject', [ReviewController::class, 'reject'])->name('review.reject');
+            Route::post('review/{review}/post', [ReviewController::class, 'post'])->name('review.post');
+            Route::post('review/{review}/comments', [ReviewController::class, 'comment'])->name('review.comments');
+            Route::post('review/{review}/tags', [ReviewController::class, 'tag'])->name('review.tags');
+            Route::post('review/{review}/classify', [ReviewController::class, 'classify'])->name('review.classify');
 
             Route::get('entities', [EntityController::class, 'index'])->name('entities.index');
             Route::get('entities/{entity}', [EntityController::class, 'show'])->name('entities.show');

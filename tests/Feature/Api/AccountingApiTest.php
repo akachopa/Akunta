@@ -9,9 +9,9 @@ use App\Models\User;
 use Laravel\Sanctum\Sanctum;
 
 /*
- * plan.md §29: API surface v1. Phase 1–2 hanya mencakup auth, businesses, accounts,
- * journals, periods, dan trial balance. Endpoint documents, transactions, review,
- * reconciliation, dan AI analyst (§29.3–§29.5, §29.8, §29.10) belum ada.
+ * plan.md §29: API surface v1. Phase 1–10 mencakup auth, businesses, accounts,
+ * journals, periods, trial balance, documents, transactions, review dokumen, dan
+ * Review Center. Endpoint reconciliation dan AI analyst (§29.5, §29.10) belum ada.
  *
  * plan.md §30 mewajibkan seluruh endpoint tenant-scoped, sehingga setiap kelompok
  * endpoint di sini diuji juga terhadap akses lintas tenant.
@@ -429,16 +429,16 @@ it('menolak staff melihat laporan', function (): void {
 
 it('belum menyediakan endpoint phase berikutnya', function (): void {
     /*
-     * Penanda eksplisit bahwa endpoint plan.md §29.5, §29.8 review queue, dan §29.10 memang
-     * belum dibangun, bukan terlewat. Endpoint dokumen (§29.3) ada sejak Phase 3, dan
-     * pembacaan transaksi (§29.4) sejak Phase 5.
+     * Penanda eksplisit bahwa endpoint plan.md §29.5 reconciliation dan §29.10 AI analyst
+     * belum dibangun, bukan terlewat. Review queue (§29.8) tersedia sejak Phase 10.
      */
     Sanctum::actingAs($this->accountant);
 
     $businessId = $this->business->getKey();
 
+    $this->getJson("/api/v1/businesses/{$businessId}/review-queue")->assertOk();
+
     foreach ([
-        "/api/v1/businesses/{$businessId}/review-queue",
         "/api/v1/businesses/{$businessId}/reconciliation",
         "/api/v1/businesses/{$businessId}/ai/ask",
     ] as $url) {

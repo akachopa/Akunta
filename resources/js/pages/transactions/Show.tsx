@@ -9,7 +9,7 @@ import type { TransactionDetail } from '@/types';
 interface Props {
     business: { id: string; name: string };
     transaction: TransactionDetail;
-    can?: { classify: boolean };
+    can?: { classify: boolean; approve: boolean; post: boolean };
 }
 
 function Detail({ label, children }: { label: string; children: React.ReactNode }) {
@@ -28,6 +28,12 @@ export default function TransactionShow({ business, transaction, can }: Props) {
         event_code: transaction.economic_event?.code ?? '',
         reason: '',
     });
+    const approve = useForm({ reason: '' });
+    const reject = useForm({ reason: '' });
+    const post = useForm({ reason: '' });
+    const reviewable = ['need_review', 'classified', 'ready'].includes(transaction.status);
+    const awaitingPost = transaction.status === 'approved';
+    const base = `/businesses/${business.id}/transactions/${transaction.id}`;
 
     return (
         <>
@@ -99,6 +105,92 @@ export default function TransactionShow({ business, transaction, can }: Props) {
                         Jurnal di bawah adalah usulan draft; posting tetap menunggu akuntan.
                     </p>
                 </Card>
+
+                {can?.approve && reviewable && (
+                    <Card
+                        title="Keputusan Review"
+                        description="Setujui agar jurnal menunggu posting, atau tolak dengan alasan. Jejaknya tetap tersimpan."
+                    >
+                        <div className="space-y-3">
+                            <form
+                                className="flex flex-wrap items-end gap-2"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    approve.post(`${base}/approve`);
+                                }}
+                            >
+                                <input
+                                    className="min-w-56 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                    placeholder="Catatan persetujuan (opsional)"
+                                    value={approve.data.reason}
+                                    onChange={(event) =>
+                                        approve.setData('reason', event.target.value)
+                                    }
+                                />
+                                <button
+                                    type="submit"
+                                    className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white disabled:opacity-60"
+                                    disabled={approve.processing}
+                                >
+                                    Setujui
+                                </button>
+                            </form>
+                            <form
+                                className="flex flex-wrap items-end gap-2"
+                                onSubmit={(event) => {
+                                    event.preventDefault();
+                                    reject.post(`${base}/reject`);
+                                }}
+                            >
+                                <input
+                                    className="min-w-56 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                    placeholder="Alasan penolakan (wajib)"
+                                    value={reject.data.reason}
+                                    onChange={(event) =>
+                                        reject.setData('reason', event.target.value)
+                                    }
+                                    required
+                                />
+                                <button
+                                    type="submit"
+                                    className="rounded-md border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-800 disabled:opacity-60"
+                                    disabled={reject.processing || reject.data.reason.trim() === ''}
+                                >
+                                    Tolak
+                                </button>
+                            </form>
+                        </div>
+                    </Card>
+                )}
+
+                {can?.post && awaitingPost && (
+                    <Card
+                        title="Posting Jurnal"
+                        description="Hanya akuntan yang memasukkan jurnal ke ledger."
+                    >
+                        <form
+                            className="flex flex-wrap items-end gap-2"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                post.post(`${base}/post`);
+                            }}
+                        >
+                            <input
+                                className="min-w-56 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
+                                placeholder="Catatan posting (opsional)"
+                                value={post.data.reason}
+                                onChange={(event) => post.setData('reason', event.target.value)}
+                            />
+                            <button
+                                type="submit"
+                                className="rounded-md bg-teal-700 px-3 py-2 text-sm text-white disabled:opacity-60"
+                                disabled={post.processing}
+                            >
+                                Posting ke ledger
+                            </button>
+                        </form>
+                    </Card>
+                )}
 
                 {can?.classify && (
                     <Card

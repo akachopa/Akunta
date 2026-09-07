@@ -12,6 +12,7 @@ use App\Domain\Transactions\Models\Transaction;
 use App\Domain\Transactions\Models\TransactionEvidence;
 use App\Domain\Transactions\Models\TransactionRelation;
 use App\Domain\Transactions\Models\TransactionSource;
+use App\Domain\Transactions\Models\TransactionTag;
 
 /**
  * Bentuk payload transaksi untuk web (Inertia) dan API v1.
@@ -79,6 +80,11 @@ class TransactionPresenter
                 ->all(),
             'relations' => $this->relations($transaction),
             'journal' => $this->journal($transaction),
+            'tags' => $transaction->relationLoaded('tags')
+                ? $transaction->tags
+                    ->map(static fn (TransactionTag $tag): string => $tag->tag)
+                    ->all()
+                : [],
             'event_options' => array_map(
                 static fn (EconomicEventCode $code): array => [
                     'value' => $code->value,

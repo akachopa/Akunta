@@ -13,6 +13,7 @@ use App\Domain\Business\Enums\AccountingBasis;
 use App\Domain\Business\Enums\BusinessType;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Entities\Models\Entity;
+use App\Domain\Review\Models\ReviewTask;
 use App\Domain\Transactions\Models\Transaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -160,6 +161,14 @@ class Business extends Model implements KeepsAuditSnapshot
         return $this->hasMany(Entity::class);
     }
 
+    /**
+     * @return HasMany<ReviewTask, $this>
+     */
+    public function reviewTasks(): HasMany
+    {
+        return $this->hasMany(ReviewTask::class);
+    }
+
     /*
      * Alias relasi di bawah ada karena scoped route binding Laravel mencari relasi
      * bernama bentuk plural dari nama parameter route (`{journal}` → journals()).
@@ -188,5 +197,13 @@ class Business extends Model implements KeepsAuditSnapshot
     public function members(): HasMany
     {
         return $this->memberships();
+    }
+
+    /**
+     * @return HasMany<ReviewTask, $this>
+     */
+    public function reviews(): HasMany
+    {
+        return $this->reviewTasks();
     }
 }

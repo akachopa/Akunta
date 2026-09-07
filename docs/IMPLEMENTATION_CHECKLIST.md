@@ -34,21 +34,23 @@ Keputusan struktur yang mengikuti `plan.md` §27 dan §28:
 
 ## 2. Scope Iterasi Ini
 
-**Phase 0 sampai Phase 9.** Phase 6–9 dikerjakan setelah pipeline transaksi Phase 5 lulus,
-sesuai `plan.md` §38. Phase 10 (Review Center) **tidak** dikerjakan pada iterasi ini.
+**Phase 0 sampai Phase 10.** Phase 10 (Review Center) dikerjakan setelah matching dan
+usulan jurnal draft Phase 6–9 lulus, sesuai `plan.md` §38.
 
-Batas Phase 9: dokumen yang menghasilkan transaksi melewati tahap `match` yang menjalankan
-entity resolution, deteksi duplikat/related, klasifikasi peristiwa ekonomi, dan usulan
-jurnal **draft**. LLM tidak menulis baris jurnal. Posting tetap menunggu akuntan
-(`plan.md` §15.2).
+Batas Phase 10: transaksi yang perlu manusia masuk antrean Review Center. Owner atau
+akuntan dapat menyetujui, menolak, atau mengoreksi. Menyetujui **tidak** memposting
+jurnal (`plan.md` §15.2). Penolakan bukan penghapusan (`plan.md` §31, §44.7). Staff
+hanya melihat.
 
 Konsekuensi pada kode:
 
 - Tahap pipeline yang dieksekusi adalah `parse`, `classify`, `extract`, `normalize`, dan
   `match`.
 - Dokumen bertransaksi masuk `matching` lalu berakhir di `ready` atau `need_review`.
-- Transaksi berakhir di `ready` atau `need_review`. Duplikat tidak dijurnal dua kali.
-- Jurnal yang lahir dari dokumen berstatus `draft`.
+- Transaksi berakhir di `ready` atau `need_review`, lalu `approved` / `rejected` / `posted`
+  lewat Review Center.
+- Jurnal yang lahir dari dokumen berstatus `draft` sampai akuntan mem-post.
+- Duplikat tidak dijurnal dua kali, termasuk setelah disetujui di antrean.
 - Provider AI default-nya heuristik. Worker juga mengklasifikasi economic event
   (`/v1/classify-event`) dan menolak kode di luar taksonomi.
 - `plan.md` §17.2 (learning layer) belum dibangun: koreksi tersimpan di `ai_feedback`
@@ -344,9 +346,39 @@ Acceptance `plan.md` §37 Phase 9:
 
 ---
 
-## 13. Testing Strategy Coverage (`plan.md` §33)
+## 13. Phase 10 — Review Center
 
-Unit test wajib per `plan.md` §33.1, sampai Phase 9:
+Acceptance `plan.md` §37 Phase 10 dan surface `plan.md` §16, §29.4, §29.8.
+
+| # | Item | Status |
+| --- | --- | --- |
+| 10.1 | Tabel `review_tasks`, `review_actions`, `review_comments`, `transaction_tags` (`plan.md` §23) | Selesai |
+| 10.2 | Antrean exception-based: Perlu Informasi / Siap Disetujui / Menunggu Posting / Selesai | Selesai |
+| 10.3 | Approve transaksi → `approved`, jurnal `approved`, **bukan** posted (`plan.md` §15.2) | Selesai |
+| 10.4 | Posting hanya akuntan; `posting_date` diisi dari tanggal jurnal | Selesai |
+| 10.5 | Reject wajib alasan; jurnal draft dihapus; jejak tetap ada (`plan.md` §31, §44.7) | Selesai |
+| 10.6 | Koreksi peristiwa, komentar, dan tag bersifat append-only | Selesai |
+| 10.7 | Owner + accountant boleh review/approve; staff tidak (`plan.md` §4.2–§4.4) | Selesai |
+| 10.8 | API `GET /api/v1/businesses/{id}/review-queue` dan approve/reject/post transaksi | Selesai |
+| 10.9 | UI Inertia Review Center + tindakan pada halaman transaksi | Selesai |
+
+Acceptance:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Matching membuka tugas review | Selesai | `ReviewCenterTest` |
+| Approve ≠ post | Selesai | Owner approve meninggalkan jurnal `approved` |
+| Accountant post mengisi `posting_date` | Selesai | `ReviewCenterTest` |
+| Reject bukan delete | Selesai | Transaksi `rejected`, `review_actions` tetap ada |
+| Staff 403 | Selesai | `ReviewCenterTest` + `RolePermissionTest` |
+| Duplikat tidak double-post | Selesai | Approve duplikat tidak menambah jurnal |
+| Isolasi tenant | Selesai | 404 lintas bisnis |
+
+---
+
+## 14. Testing Strategy Coverage (`plan.md` §33)
+
+Unit test wajib per `plan.md` §33.1, sampai Phase 10:
 
 | Area | Status |
 | --- | --- |
@@ -356,20 +388,20 @@ Unit test wajib per `plan.md` §33.1, sampai Phase 9:
 | COA behavior | Selesai |
 | Report calculations | Sebagian — hanya trial balance (Phase 2). Income statement/balance sheet/cash flow adalah Phase 12 |
 | Matching score | Selesai — `DuplicateRelatedMatchingTest` |
-| Permissions | Selesai |
+| Permissions | Selesai — termasuk `transaction.review` / `transaction.approve` |
 | Document extraction validation | Selesai |
 | Confidence engine | Selesai |
 | Transaction normalization | Selesai |
+| Review Center | Selesai — `ReviewCenterTest`, `ReviewEnumTest` |
 
 ---
 
-## 14. Item `plan.md` yang BELUM Dikerjakan
+## 15. Item `plan.md` yang BELUM Dikerjakan
 
-Sengaja tidak dikerjakan karena berada di luar Phase 0–9.
+Sengaja tidak dikerjakan karena berada di luar Phase 0–10.
 
-### Di luar phase (Phase 10 ke atas)
+### Di luar phase (Phase 11 ke atas)
 
-- `plan.md` §37 Phase 10 — Review Center.
 - `plan.md` §37 Phase 11 — Reconciliation Engine.
 - `plan.md` §37 Phase 12 — Reporting (income statement, balance sheet, cash flow, AP/AR, drill-down).
 - `plan.md` §37 Phase 13 — Closing Center.
@@ -378,9 +410,8 @@ Sengaja tidak dikerjakan karena berada di luar Phase 0–9.
 - `plan.md` §16 — OCR vision model.
 - `plan.md` §22 — AI Financial Analyst insight cards.
 
-Tabel `plan.md` §23 yang belum dibuat: `transaction_tags`, `review_tasks`, `review_actions`,
-`review_comments`, `reconciliations`, `reconciliation_items`, `reconciliation_matches`,
-`closing_periods`, `closing_checklists`, `closing_issues`.
+Tabel `plan.md` §23 yang belum dibuat: `reconciliations`, `reconciliation_items`,
+`reconciliation_matches`, `closing_periods`, `closing_checklists`, `closing_issues`.
 
 Catatan: tabel entity, transaction_relations, economic_event_*, dan accounting_rules
 sudah dibuat pada Phase 6–9.
@@ -393,15 +424,15 @@ sudah dibuat pada Phase 6–9.
 
 ---
 
-## 15. Verifikasi Iterasi Ini
+## 16. Verifikasi Iterasi Ini
 
 Perintah di bawah dijalankan pada commit terakhir branch ini, terhadap PostgreSQL 16 dan
 Redis 7 yang benar-benar berjalan.
 
 | Perintah | Hasil |
 | --- | --- |
-| `php artisan migrate:fresh --seed` | Seluruh 43 migration dan ketiga seeder jalan tanpa error |
-| `php artisan test` | 363 test, 1941 assertion, seluruhnya lulus |
+| `php artisan migrate:fresh --seed` | Seluruh 47 migration dan ketiga seeder jalan tanpa error |
+| `php artisan test` | 375 test, 2105 assertion, seluruhnya lulus |
 | `vendor/bin/pint --test` | Lolos |
 | `vendor/bin/phpstan analyse` | Level 6, tanpa error |
 | `npm run lint` / `format:check` / `types` / `build` | Seluruhnya lolos |
@@ -422,6 +453,7 @@ Distribusi test:
 | Phase 4 (worker) | `test_classifier.py`, `test_extractors.py`, `test_intelligence_api.py`, `test_providers.py`, `test_numbers.py` |
 | Phase 5 | `TransactionNormalizationTest`, `TransactionInboxTest` |
 | Phase 6–9 | `EntityResolutionTest`, `DuplicateRelatedMatchingTest`, `EconomicEventClassificationTest`, `AccountingRulesTest` |
+| Phase 10 | `ReviewEnumTest`, `ReviewCenterTest` |
 | Phase 8 (worker) | `test_economic_event.py`, tambahan pada `test_intelligence_api.py`, `test_health.py`, `test_providers.py` |
 
 Catatan koreksi accounting yang muncul dari test Phase 2: trial balance semula hanya
