@@ -1,0 +1,71 @@
+<?php
+
+declare(strict_types=1);
+
+use App\Http\Controllers\AccountingPeriodController;
+use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\BusinessController;
+use App\Http\Controllers\BusinessMemberController;
+use App\Http\Controllers\ChartOfAccountController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\TrialBalanceController;
+use Illuminate\Support\Facades\Route;
+
+Route::redirect('/', '/dashboard');
+
+Route::middleware('guest')->group(function (): void {
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])->name('login');
+    Route::post('login', [AuthenticatedSessionController::class, 'store'])
+        ->middleware('throttle:6,1');
+
+    Route::get('register', [RegisteredUserController::class, 'create'])->name('register');
+    Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:6,1');
+});
+
+Route::middleware('auth')->group(function (): void {
+    Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
+
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('businesses', [BusinessController::class, 'index'])->name('businesses.index');
+    Route::get('businesses/create', [BusinessController::class, 'create'])->name('businesses.create');
+    Route::post('businesses', [BusinessController::class, 'store'])->name('businesses.store');
+
+    /*
+     * scopeBindings() memaksa child model di-resolve melalui relasi business-nya,
+     * sehingga id milik tenant lain menghasilkan 404, bukan 403 (plan.md §44.15).
+     */
+    Route::prefix('businesses/{business}')
+        ->name('businesses.')
+        ->scopeBindings()
+        ->group(function (): void {
+            Route::get('/', [BusinessController::class, 'show'])->name('show');
+            Route::patch('/', [BusinessController::class, 'update'])->name('update');
+
+            Route::get('members', [BusinessMemberController::class, 'index'])->name('members.index');
+            Route::post('members', [BusinessMemberController::class, 'store'])->name('members.store');
+            Route::patch('members/{member}', [BusinessMemberController::class, 'update'])->name('members.update');
+            Route::delete('members/{member}', [BusinessMemberController::class, 'destroy'])->name('members.destroy');
+
+            Route::get('accounts', [ChartOfAccountController::class, 'index'])->name('accounts.index');
+            Route::post('accounts', [ChartOfAccountController::class, 'store'])->name('accounts.store');
+            Route::patch('accounts/{account}', [ChartOfAccountController::class, 'update'])->name('accounts.update');
+            Route::delete('accounts/{account}', [ChartOfAccountController::class, 'destroy'])->name('accounts.destroy');
+
+            Route::get('journals', [JournalEntryController::class, 'index'])->name('journals.index');
+            Route::post('journals', [JournalEntryController::class, 'store'])->name('journals.store');
+            Route::get('journals/{journal}', [JournalEntryController::class, 'show'])->name('journals.show');
+            Route::post('journals/{journal}/approve', [JournalEntryController::class, 'approve'])->name('journals.approve');
+            Route::post('journals/{journal}/post', [JournalEntryController::class, 'post'])->name('journals.post');
+            Route::post('journals/{journal}/reverse', [JournalEntryController::class, 'reverse'])->name('journals.reverse');
+
+            Route::get('periods', [AccountingPeriodController::class, 'index'])->name('periods.index');
+            Route::post('periods/{period}/close', [AccountingPeriodController::class, 'close'])->name('periods.close');
+            Route::post('periods/{period}/reopen', [AccountingPeriodController::class, 'reopen'])->name('periods.reopen');
+
+            Route::get('reports/trial-balance', TrialBalanceController::class)->name('reports.trial-balance');
+        });
+});
