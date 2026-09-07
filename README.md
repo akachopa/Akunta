@@ -6,17 +6,15 @@ Akunta menghasilkan pembukuan double-entry yang benar, dan akuntan memverifikasi
 `plan.md` adalah source of truth untuk produk ini. Status implementasi per phase dicatat
 di [`docs/IMPLEMENTATION_CHECKLIST.md`](docs/IMPLEMENTATION_CHECKLIST.md).
 
-**Status saat ini: Phase 0, 1, 2, 3, 4, dan 5 selesai.** Fondasinya multi-tenant,
-accounting-safe, punya source document yang immutable dan queue processing, membaca isi
-dokumen menjadi field terstruktur beserta tingkat keyakinannya, dan mengubah field itu
-menjadi transaksi canonical yang dapat ditelusuri kembali ke baris dokumen asalnya.
+**Status saat ini: Phase 0–9 selesai.** Fondasinya multi-tenant, accounting-safe, punya
+source document yang immutable dan queue processing, membaca isi dokumen menjadi field
+terstruktur, menormalisasi transaksi canonical, meresolusi pihak lawan, mendeteksi
+duplikat/dokumen terkait, mengklasifikasi peristiwa ekonomi, dan mengusulkan jurnal draft
+dari accounting rule. Posting jurnal tetap menunggu akuntan (`plan.md` §15.2). Review
+Center (Phase 10) belum dikerjakan.
 
-Phase 6 ke atas belum dikerjakan. Batasnya: Phase 5 berhenti pada **transaksi** — apa yang
-terjadi, kapan, berapa nominalnya, dan ke arah mana uangnya bergerak. Menetapkan *siapa*
-lawan transaksinya (entity resolution), *apa* makna ekonominya (economic event), dan
-*jurnal* apa yang lahir darinya adalah Phase 6 ke atas. Karena itu transaksi tidak
-memiliki kolom akun maupun debit/kredit, dan tidak ada satu pun jurnal yang dihasilkan
-otomatis dari dokumen.
+Phase 10 ke atas belum dikerjakan: antrean review transaksi, rekonsiliasi, laporan
+lengkap, closing, dan AI analyst.
 
 ## Arsitektur
 
@@ -37,10 +35,10 @@ SQLite.
 
 ```
 app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Transactions, Tenancy, Audit)
-app/Services/        Logika bisnis: posting journal, provisioning bisnis, pemrosesan dokumen, normalisasi transaksi, audit logger
+app/Services/        Logika bisnis: posting journal, provisioning, pemrosesan dokumen, normalisasi, entity, matching, economic event, accounting rules
 app/Jobs/            Queue job, termasuk pipeline pemrosesan dokumen
 app/Http/            Controller web (Inertia) dan API v1, middleware, form request, presenter
-ai-worker/           FastAPI worker: parser deterministik, classifier, extractor, abstraksi provider AI
+ai-worker/           FastAPI worker: parser, classifier dokumen, extractor, klasifikasi peristiwa ekonomi
 resources/js/        Halaman, layout, dan komponen React
 database/migrations Schema PostgreSQL
 tests/               Pest: Unit dan Feature

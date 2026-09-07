@@ -34,37 +34,25 @@ Keputusan struktur yang mengikuti `plan.md` §27 dan §28:
 
 ## 2. Scope Iterasi Ini
 
-**Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, dan Phase 5.** Phase 3 baru dimulai setelah
-seluruh test Accounting Foundation Phase 2 lulus, sesuai `plan.md` §38 dan §48, Phase 4
-dimulai setelah pipeline parsing Phase 3 lulus, dan Phase 5 setelah Phase 4 lulus.
+**Phase 0 sampai Phase 9.** Phase 6–9 dikerjakan setelah pipeline transaksi Phase 5 lulus,
+sesuai `plan.md` §38. Phase 10 (Review Center) **tidak** dikerjakan pada iterasi ini.
 
-Phase 6 ke atas (Entity Resolution dan seterusnya) **tidak** dikerjakan. Batas Phase 5
-adalah **transaksi canonical**: apa yang terjadi, kapan, berapa nominalnya, dan ke arah
-mana uangnya bergerak, lengkap dengan penunjuk ke baris dokumen asalnya. Menetapkan
-*siapa* lawan transaksinya (entity), *apa* makna ekonominya (economic event), dan
-*jurnal* apa yang lahir darinya adalah phase berikutnya.
+Batas Phase 9: dokumen yang menghasilkan transaksi melewati tahap `match` yang menjalankan
+entity resolution, deteksi duplikat/related, klasifikasi peristiwa ekonomi, dan usulan
+jurnal **draft**. LLM tidak menulis baris jurnal. Posting tetap menunggu akuntan
+(`plan.md` §15.2).
 
-Konsekuensi batas tersebut pada kode:
+Konsekuensi pada kode:
 
-- Tahap pipeline `plan.md` §13.1 yang dieksekusi adalah `parse`, `classify`, `extract`,
-  dan `normalize`. Tahap `match` dan seterusnya dicatat sebagai `pending` supaya jejaknya
-  terlihat, bukan diam-diam dilewati.
-- Dokumen berakhir di `ready` atau `need_review`. Status `matching` tetap ada sebagai
-  state `plan.md` §25.1, tetapi tidak ada dokumen yang memasukinya.
-- Transaksi berakhir di `normalized` atau `need_review`. Status `matching`, `classified`,
-  `ready`, `approved`, dan `posted` sudah ada pada state machine `plan.md` §25.2, tetapi
-  tidak ada kode Phase 5 yang mendorong transaksi ke sana.
-- Transaksi tidak memiliki kolom akun maupun debit/kredit, dan halamannya tidak
-  menampilkannya. Pemetaan akun adalah Phase 8–9 (`plan.md` §44.3, §44.4).
-- Tidak ada jurnal yang dihasilkan dari dokumen. `Document::readyForTransactionPipeline()`
-  adalah pintu masuk normalisasi, dan pintu itu menuntut dokumen READY **dan** ekstraksi
-  berstatus `accepted`.
-- Provider AI default-nya heuristik berbasis aturan, sehingga seluruh pipeline dapat
-  dijalankan dan diuji tanpa kredensial vendor. Provider OpenAI tersedia lewat
-  konfigurasi (`plan.md` §13.3, §44.12).
-- `plan.md` §17.2 (learning layer) belum dibangun: koreksi reviewer tersimpan lengkap di
-  `ai_feedback`, tetapi belum ada kode yang membacanya sebagai masukan prediksi
-  berikutnya.
+- Tahap pipeline yang dieksekusi adalah `parse`, `classify`, `extract`, `normalize`, dan
+  `match`.
+- Dokumen bertransaksi masuk `matching` lalu berakhir di `ready` atau `need_review`.
+- Transaksi berakhir di `ready` atau `need_review`. Duplikat tidak dijurnal dua kali.
+- Jurnal yang lahir dari dokumen berstatus `draft`.
+- Provider AI default-nya heuristik. Worker juga mengklasifikasi economic event
+  (`/v1/classify-event`) dan menolak kode di luar taksonomi.
+- `plan.md` §17.2 (learning layer) belum dibangun: koreksi tersimpan di `ai_feedback`
+  tetapi belum dibaca sebagai masukan prediksi berikutnya.
 
 ---
 
@@ -295,121 +283,117 @@ Acceptance `plan.md` §37 Phase 5:
 | Satu invoice menghasilkan transaksi/evidence sesuai kebutuhan | Selesai | `TransactionNormalizationTest` (faktur menjadi satu transaksi dengan bukti subtotal/pajak/nomor, settlement menyimpan bruto dan MDR sebagai bukti) |
 | Transaksi dapat ditelusuri ke sumbernya | Selesai | `TransactionNormalizationTest` (sumber menunjuk dokumen, ekstraksi, `row_index`, dan halaman) dan `TransactionInboxTest` (penelusuran dua arah lewat HTTP dan API) |
 
-Catatan implementasi yang perlu diketahui saat melanjutkan ke Phase 6:
+Catatan implementasi Phase 5 yang tetap berlaku:
 
-- Normalisasi bersifat **semua atau tidak sama sekali** per dokumen. Rekening koran yang
-  satu barisnya tidak konsisten menghasilkan nol transaksi dan dokumennya kembali ke
-  review, karena kas yang kehilangan satu mutasi tidak akan pernah dapat direkonsiliasi
-  (`plan.md` §19.1).
-- Nominal selalu positif; arahnya yang membawa tanda. Baris mutasi yang memuat debit dan
-  kredit sekaligus ditolak, dan setiap baris wajib menjelaskan perubahan saldonya.
-- Nomor transaksi diambil **sebelum** transaksi lama dibuang, sehingga normalisasi ulang
-  tidak memakai kembali nomor yang sudah pernah dilihat user untuk isi yang berbeda.
-- Transaksi yang sudah disetujui, diposting, atau ditolak tidak pernah diregenerasi.
-  Normalisasi berhenti dan mencatat alasannya alih-alih membatalkan keputusan manusia.
-- Settlement tidak dipecah menjadi pendapatan dan beban di sini. Nominalnya adalah neto —
-  uang yang benar-benar berpindah — dan bruto beserta MDR menempel sebagai bukti pada
-  transaksi yang sama, menunggu rule engine Phase 9.
-- Confidence transaksi adalah confidence dokumennya, karena normalisasi deterministik: ia
-  tidak menambah maupun mengurangi kepastian apa pun.
+- Normalisasi bersifat **semua atau tidak sama sekali** per dokumen.
+- Nominal selalu positif; arahnya yang membawa tanda.
+- Settlement tidak dipecah menjadi pendapatan dan beban di tahap normalisasi. Rule engine
+  Phase 9 yang memecah bruto/MDR/neto.
 
 ---
 
-## 9. Testing Strategy Coverage (`plan.md` §33)
+## 9. Phase 6 — Entity Resolution
 
-Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–5:
+Acceptance `plan.md` §37 Phase 6:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Entity master + aliases | Selesai | `entities`, `entity_aliases`, `entity_identifiers`, `entity_relationships` |
+| Deterministic + fuzzy matching | Selesai | `EntityMatcher` (identitas, alias terkonfirmasi, nama, fuzzy) |
+| Alias terkonfirmasi dipakai transaksi berikutnya | Selesai | `EntityResolutionTest` |
+| Merge punya audit trail | Selesai | `EntityMergeService` + `EntityResolutionTest` |
+
+---
+
+## 10. Phase 7 — Duplicate & Related Matching
+
+Acceptance `plan.md` §37 Phase 7:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Duplicate tidak double-transaction | Selesai | Hash/nominal/tanggal; yang lebih baru `need_review` tanpa jurnal kedua |
+| Invoice + bank payment dapat di-link | Selesai | `RelatedDocumentMatcher` + `DuplicateRelatedMatchingTest` |
+| Confidence match tersedia | Selesai | `transaction_relations.confidence` + `reasons` |
+| Duplicate vs related tidak dicampur | Selesai | Enum terpisah; duplikat tidak di-link sebagai related (`plan.md` §44.9) |
+
+---
+
+## 11. Phase 8 — Economic Event Classification
+
+Acceptance `plan.md` §37 Phase 8:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| AI hanya boleh kode valid | Selesai | Taksonomi worker + Laravel `EconomicEventCode::tryFrom` |
+| Koreksi reviewer disimpan | Selesai | `ai_feedback` + `EconomicEventClassificationTest` |
+| Low confidence → review | Selesai | Confidence engine minimum; `NeedReview` |
+
+---
+
+## 12. Phase 9 — Accounting Rules
+
+Acceptance `plan.md` §37 Phase 9:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Semua rule balanced | Selesai | `AccountingRulesTest` + `AccountingRuleDefinition` |
+| Internal transfer tidak masuk P&L | Selesai | `CashToBankTransfer` / `BankTransferInternal` memakai clearing |
+| Capital/loan bukan revenue | Selesai | `OwnerCapital` → ekuitas; `LoanReceived` → kewajiban |
+| Debt principal bukan expense | Selesai | `LoanPrincipalPayment` → `LOAN_PAYABLE` |
+| LLM tidak menulis jurnal | Selesai | `JournalProposalService` dari rule → COA; posting menunggu akuntan |
+
+---
+
+## 13. Testing Strategy Coverage (`plan.md` §33)
+
+Unit test wajib per `plan.md` §33.1, sampai Phase 9:
 
 | Area | Status |
 | --- | --- |
-| Accounting rules | Belum — rule engine adalah Phase 9 |
+| Accounting rules | Selesai — `AccountingRulesTest` |
 | Journal balancing | Selesai |
 | Period lock | Selesai |
 | COA behavior | Selesai |
 | Report calculations | Sebagian — hanya trial balance (Phase 2). Income statement/balance sheet/cash flow adalah Phase 12 |
-| Matching score | Belum — Phase 7 |
+| Matching score | Selesai — `DuplicateRelatedMatchingTest` |
 | Permissions | Selesai |
-| Document extraction validation | Selesai — `ExtractionValidator` diuji lewat `DocumentExtractionTest` |
-| Confidence engine | Selesai — `ConfidenceEngineTest` |
-| Transaction normalization | Selesai — `TransactionNormalizationTest` |
-
-`plan.md` §33.3 Accounting Golden Dataset: tersedia versi manual-journal
-(`GoldenDatasetTest` + `GoldenDatasetSeeder`) yang mencakup sales, purchases,
-operating expenses, owner transactions, loans, receivable/payable payments, QRIS
-settlement dengan MDR, dan internal bank transfer. Bagian dataset yang menuntut jurnal
-dihasilkan dari dokumen belum dikerjakan karena pemetaan akunnya masuk Phase 8+.
+| Document extraction validation | Selesai |
+| Confidence engine | Selesai |
+| Transaction normalization | Selesai |
 
 ---
 
-## 10. Item `plan.md` yang BELUM Dikerjakan
+## 14. Item `plan.md` yang BELUM Dikerjakan
 
-Sengaja tidak dikerjakan karena berada di luar Phase 0–5.
+Sengaja tidak dikerjakan karena berada di luar Phase 0–9.
 
-### Di luar phase (Phase 6 ke atas)
+### Di luar phase (Phase 10 ke atas)
 
-- `plan.md` §37 Phase 6 — Entity Resolution (entity master, aliases, fuzzy/AI matching).
-- `plan.md` §37 Phase 7 — Duplicate & Related Matching.
-- `plan.md` §37 Phase 8 — Economic Event Classification.
-- `plan.md` §37 Phase 9 — Accounting Rules engine (`accounting_rules`, `accounting_rule_lines`).
 - `plan.md` §37 Phase 10 — Review Center.
 - `plan.md` §37 Phase 11 — Reconciliation Engine.
 - `plan.md` §37 Phase 12 — Reporting (income statement, balance sheet, cash flow, AP/AR, drill-down).
-- `plan.md` §37 Phase 13 — Closing Center (readiness score, checklist, issue detection).
+- `plan.md` §37 Phase 13 — Closing Center.
 - `plan.md` §37 Phase 14 — AI Financial Analyst.
-- `plan.md` §13.1 — tahap pipeline `entity_resolution`, `duplicate_check`,
-  `event_classification`, `journal_generation`, dan `review_routing`. Yang dieksekusi
-  sampai Phase 5 adalah `parse`, `classify`, `extract`, dan `normalize`.
-- `plan.md` §14 — prompt contract `classify_economic_event`. Kontraknya sudah ada di
-  worker sebagai antarmuka provider, tetapi belum dipakai karena economic event adalah
-  Phase 8. `classify_document` dan `extract_document` sudah dipakai.
-- `plan.md` §15 — komponen confidence `entity_confidence`, `duplicate_confidence`,
-  `related_document_confidence`, `economic_event_confidence`, dan
-  `account_mapping_confidence`. Engine-nya menerima komponen apa pun tanpa perubahan;
-  yang belum ada adalah phase yang menghasilkannya.
-- `plan.md` §16 — OCR untuk dokumen hasil pindaian. Halaman yang membutuhkannya sudah
-  ditandai `needs_ocr` oleh parser PDF dan gambar, dan dokumennya tetap dapat dilengkapi
-  lewat review manual. Vision model untuk membacanya belum dipasang.
-- `plan.md` §17.2 — learning layer. `ai_feedback` sudah terisi setiap koreksi reviewer,
-  tetapi belum ada kode yang membacanya sebagai masukan prediksi berikutnya.
-- `plan.md` §18 — Duplicate vs related document.
+- `plan.md` §17.2 — learning layer.
+- `plan.md` §16 — OCR vision model.
 - `plan.md` §22 — AI Financial Analyst insight cards.
-- `plan.md` §32 — agregasi observability metrics & AI quality metrics. Bahannya sudah
-  lengkap: durasi tiap tahap di `document_processing_jobs`, biaya per dokumen di
-  `ai_usage_logs`, prediksi di `ai_predictions`, dan koreksi di `ai_feedback`. Yang belum
-  dibuat adalah query/dashboard yang menjumlahkannya.
-- `plan.md` §34 — Sample dataset 3 tipe bisnis berbasis dokumen nyata.
-- `plan.md` §36 — Dashboard MVP angka finansial (butuh posted journal dari pipeline AI).
-- `plan.md` §42, §43 — Future integrations & product evolution.
-- `plan.md` §47 — UAT checklist end-to-end.
 
-Tabel `plan.md` §23 yang belum dibuat karena milik phase berikutnya:
-`entities`, `entity_aliases`, `entity_identifiers`, `entity_relationships`,
-`transaction_relations`, `transaction_tags`, `economic_event_types`,
-`economic_event_predictions`,
-`accounting_rules`, `accounting_rule_lines`, `review_tasks`, `review_actions`,
+Tabel `plan.md` §23 yang belum dibuat: `transaction_tags`, `review_tasks`, `review_actions`,
 `review_comments`, `reconciliations`, `reconciliation_items`, `reconciliation_matches`,
 `closing_periods`, `closing_checklists`, `closing_issues`.
 
-Catatan: `bank_accounts` (`plan.md` §23.2) **sudah** dibuat pada Phase 1 karena menjadi
-bagian onboarding bisnis di `plan.md` §5.1. `documents`, `document_files`,
-`document_pages`, dan `document_processing_jobs` dibuat pada Phase 3.
-`document_extractions`, `document_fields`, `ai_model_runs`, `ai_usage_logs`,
-`ai_predictions`, `ai_prediction_candidates`, dan `ai_feedback` dibuat pada Phase 4.
-`transactions`, `transaction_sources`, dan `transaction_evidence` dibuat pada Phase 5.
+Catatan: tabel entity, transaction_relations, economic_event_*, dan accounting_rules
+sudah dibuat pada Phase 6–9.
 
-### Dalam scope Phase 0–5 tetapi butuh infrastruktur eksternal
+### Infrastruktur eksternal
 
-- `plan.md` §37 Phase 0 — deploy aktual ke staging. Repo sudah menyediakan Docker image,
-  compose, dan CI, tetapi eksekusi deployment butuh host/registry/kredensial.
-- `plan.md` §30 — malware scanning dokumen yang diunggah. Validasi MIME berbasis isi
-  berkas dan sanitasi nama sudah ada, tetapi pemindaian antivirus butuh layanan eksternal.
-- `plan.md` §30 — backup + restore test dan secret manager produksi. Rate limiting,
-  private storage, signed URL, dan audit log sudah ada di kode; sisanya adalah tugas
-  platform/operasional.
-- `plan.md` §41 — daily PostgreSQL backup dan object storage versioning (operasional).
+- `plan.md` §37 Phase 0 — deploy aktual ke staging.
+- `plan.md` §30 — malware scanning, backup + restore test, secret manager produksi.
+- `plan.md` §41 — daily PostgreSQL backup dan object storage versioning.
 
 ---
 
-## 11. Verifikasi Iterasi Ini
+## 15. Verifikasi Iterasi Ini
 
 Perintah di bawah dijalankan pada commit terakhir branch ini, terhadap PostgreSQL 16 dan
 Redis 7 yang benar-benar berjalan.
@@ -436,8 +420,9 @@ Distribusi test:
 | Phase 3 (worker) | `test_parsers.py`, `test_parse_api.py`, `test_health.py` |
 | Phase 4 | `DocumentClassificationTest`, `DocumentExtractionTest`, `DocumentReviewTest`, `ConfidenceEngineTest`, tambahan pada `DocumentEnumTest` |
 | Phase 4 (worker) | `test_classifier.py`, `test_extractors.py`, `test_intelligence_api.py`, `test_providers.py`, `test_numbers.py` |
-| Phase 5 | `TransactionNormalizationTest`, `TransactionInboxTest`, tambahan pada `DocumentEnumTest` dan `ConfidenceEngineTest` |
-| Phase 5 (worker) | tambahan pada `test_extractors.py` dan `test_intelligence_api.py` untuk extractor `transaction_list` |
+| Phase 5 | `TransactionNormalizationTest`, `TransactionInboxTest` |
+| Phase 6–9 | `EntityResolutionTest`, `DuplicateRelatedMatchingTest`, `EconomicEventClassificationTest`, `AccountingRulesTest` |
+| Phase 8 (worker) | `test_economic_event.py`, tambahan pada `test_intelligence_api.py`, `test_health.py`, `test_providers.py` |
 
 Catatan koreksi accounting yang muncul dari test Phase 2: trial balance semula hanya
 membaca `journal_entries.status = 'posted'`, sehingga sebuah reversal entry ikut terhitung
