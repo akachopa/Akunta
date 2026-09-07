@@ -141,11 +141,10 @@ it('menampilkan viewer dengan halaman dan riwayat proses', function (): void {
             ->where('document.pages.0.row_count', 2)
 
             /*
-             * Timeline memuat tahap parse yang selesai dan satu tahap phase berikutnya
-             * (match). Classify, extract, dan normalize tidak muncul sebagai baris menunggu
-             * karena ketiganya sudah dibangun dan job-nya dibuat saat tahapnya dijalankan.
+             * Timeline memuat tahap parse yang selesai. Tahap berikutnya dibuat saat
+             * dijalankan, bukan sebagai baris menunggu (Phase 6–9 sudah dibangun).
              */
-            ->count('document.processing_jobs', 2)
+            ->count('document.processing_jobs', 1)
             ->where('document.processing_jobs.0.stage', 'parse')
             ->where('document.processing_jobs.0.status', 'succeeded')
             ->where('can.reprocess', true)

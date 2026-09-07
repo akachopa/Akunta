@@ -62,9 +62,9 @@ it('mengizinkan setiap status yang tidak sedang berjalan untuk diantre ulang', f
     expect(DocumentStatus::Queued->isRetryable())->toBeFalse();
 });
 
-it('menganggap berjalan hanya status yang tahapnya sudah dibangun', function (): void {
+it('menganggap berjalan status yang tahapnya sudah dibangun, termasuk matching', function (): void {
     /*
-     * Sejak Phase 4 dan Phase 5, keempat tahap ini benar-benar dikerjakan worker, sehingga
+     * Sejak Phase 9, kelima tahap pipeline benar-benar dikerjakan worker, sehingga
      * polling atasnya akan berujung pada perubahan status.
      */
     expect(DocumentStatus::Queued->isProcessing())->toBeTrue();
@@ -72,16 +72,9 @@ it('menganggap berjalan hanya status yang tahapnya sudah dibangun', function ():
     expect(DocumentStatus::Classifying->isProcessing())->toBeTrue();
     expect(DocumentStatus::Extracting->isProcessing())->toBeTrue();
     expect(DocumentStatus::Normalizing->isProcessing())->toBeTrue();
+    expect(DocumentStatus::Matching->isProcessing())->toBeTrue();
 
-    /*
-     * MATCHING sebaliknya: tidak ada worker yang akan memindahkan dokumen dari sana sampai
-     * Phase 7, sehingga polling tanpa akhir hanya membebani server tanpa pernah
-     * menghasilkan perubahan.
-     */
-    expect(DocumentStatus::Matching->isProcessing())->toBeFalse();
-
-    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing', 'classifying', 'extracting', 'normalizing');
-    expect(DocumentStatus::processingValues())->not->toContain('matching');
+    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing', 'classifying', 'extracting', 'normalizing', 'matching');
 });
 
 it('mengizinkan koreksi reviewer membuka kembali tahap ekstraksi', function (): void {
@@ -114,19 +107,17 @@ it('memberi label indonesia pada setiap status', function (): void {
     }
 });
 
-it('menandai tahap parse sampai normalize sudah dibangun', function (): void {
+it('menandai tahap parse sampai match sudah dibangun', function (): void {
     foreach ([
         DocumentProcessingStage::Parse,
         DocumentProcessingStage::Classify,
         DocumentProcessingStage::Extract,
         DocumentProcessingStage::Normalize,
+        DocumentProcessingStage::Match,
     ] as $stage) {
         expect($stage->isImplemented())->toBeTrue();
-        expect($stage->phase())->toBeLessThanOrEqual(5);
+        expect($stage->phase())->toBeLessThanOrEqual(7);
     }
-
-    expect(DocumentProcessingStage::Match->isImplemented())->toBeFalse();
-    expect(DocumentProcessingStage::Match->phase())->toBeGreaterThan(5);
 });
 
 it('memetakan setiap tahap ke status dokumen yang sesuai', function (): void {

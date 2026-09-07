@@ -49,7 +49,7 @@ it('menghasilkan satu transaksi untuk setiap baris mutasi rekening koran', funct
     expect($setoran->transaction_date->toDateString())->toBe('2026-01-15');
     expect($setoran->amount)->toBe('2000000.00');
     expect($setoran->currency)->toBe('IDR');
-    expect($setoran->status)->toBe(TransactionStatus::Normalized);
+    expect($setoran->status)->toBe(TransactionStatus::Ready);
     expect($setoran->source_type)->toBe(TransactionSourceType::BankStatement);
 
     /*

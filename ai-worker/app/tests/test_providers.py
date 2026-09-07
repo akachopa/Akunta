@@ -29,7 +29,7 @@ def test_unknown_provider_raises() -> None:
         resolve_provider("provider-yang-tidak-ada")
 
 
-@pytest.mark.parametrize("task", ["classify_document", "extract_document"])
+@pytest.mark.parametrize("task", ["classify_document", "extract_document", "classify_economic_event"])
 def test_task_routing_falls_back_to_default_provider(task: str) -> None:
     """plan.md §13.2: routing per task, dengan default bila task tidak dipetakan."""
     assert isinstance(resolve_for_task(task), HeuristicProvider)
@@ -66,10 +66,13 @@ def test_null_provider_refuses_inference(method: str) -> None:
             getattr(provider, method)({})
 
 
-def test_economic_event_classification_is_deferred() -> None:
-    """plan.md §37 Phase 8: economic event classifier belum dibangun."""
-    with pytest.raises(AIProviderError, match="Phase 8"):
-        HeuristicProvider().classify_economic_event({})
+def test_heuristic_classifies_bank_fee() -> None:
+    result = HeuristicProvider().classify_economic_event(
+        {"description": "BIAYA ADMIN", "direction": "outflow", "amount": "500000.00"}
+    )
+
+    assert result.data["event_code"] == "BANK_FEE"
+    assert result.data["confidence"] >= 0.9
 
 
 class _FakeProvider(StructuredProvider):

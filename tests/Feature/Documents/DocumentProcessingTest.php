@@ -73,7 +73,7 @@ it('menyerahkan dokumen ke tahap klasifikasi setelah parse', function (): void {
     expect($document->refresh()->processing_status)->toBe(DocumentStatus::Classifying);
 });
 
-it('mencatat tahap phase berikutnya sebagai pending agar batas phase terlihat', function (): void {
+it('tidak mencatat tahap match sebagai pending karena sudah dibangun', function (): void {
     [$owner, $business] = $this->provisionBusinessWithOwner();
     $document = $this->ingestDocument($business, $owner);
 
@@ -88,15 +88,13 @@ it('mencatat tahap phase berikutnya sebagai pending agar batas phase terlihat', 
     expect($jobs['parse']->duration_ms)->not->toBeNull();
 
     /*
-     * Classify, extract, dan normalize tidak muncul sebagai baris menunggu: ketiganya sudah
-     * dibangun, dan job-nya dibuat ketika tahapnya benar-benar dijalankan.
+     * Classify, extract, normalize, dan match tidak muncul sebagai baris menunggu:
+     * keempatnya sudah dibangun, dan job-nya dibuat ketika tahapnya benar-benar dijalankan.
      */
     expect($jobs->has('classify'))->toBeFalse();
     expect($jobs->has('extract'))->toBeFalse();
     expect($jobs->has('normalize'))->toBeFalse();
-
-    expect($jobs['match']->status)->toBe(ProcessingJobStatus::Pending);
-    expect($jobs['match']->error_message)->toContain('Phase');
+    expect($jobs->has('match'))->toBeFalse();
 });
 
 it('mengirim job klasifikasi setelah parse berhasil', function (): void {

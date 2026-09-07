@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Domain\Business\Models\Business;
+use App\Domain\Documents\Enums\DocumentStatus;
 use App\Domain\Documents\Enums\DocumentType;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Tenancy\TenantContext;
@@ -13,6 +14,7 @@ use App\Services\DocumentProcessing\DocumentClassificationService;
 use App\Services\DocumentProcessing\DocumentExtractionService;
 use App\Services\DocumentProcessing\DocumentIngestionService;
 use App\Services\DocumentProcessing\DocumentProcessingService;
+use App\Services\TransactionIntelligence\TransactionIntelligenceService;
 use App\Services\TransactionNormalization\TransactionNormalizationService;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
@@ -307,7 +309,8 @@ trait UploadsDocuments
     }
 
     /**
-     * Menjalankan seluruh pipeline dokumen hingga selesai: parse, classify, extract, normalize.
+     * Menjalankan seluruh pipeline dokumen hingga selesai: parse, classify, extract,
+     * normalize, lalu matching (entity, duplicate/related, peristiwa, jurnal).
      *
      * Tahapnya dipanggil berurutan alih-alih lewat queue karena setiap service sudah menolak
      * dokumen yang tidak sedang menunggu tahapnya, sehingga urutan ini menghasilkan keadaan
@@ -320,6 +323,7 @@ trait UploadsDocuments
             app(DocumentClassificationService::class)->classify($document);
             app(DocumentExtractionService::class)->extract($document);
             app(TransactionNormalizationService::class)->normalize($document);
+            app(TransactionIntelligenceService::class)->process($document->refresh());
         });
 
         return $document->refresh();
@@ -381,15 +385,49 @@ trait UploadsDocuments
     }
 
     /**
-     * Menjalankan tahap normalisasi saja, untuk dokumen yang masuk NORMALIZING lewat review.
+     * Menjalankan tahap normalisasi, lalu matching bila dokumen masuk MATCHING.
      */
     protected function runNormalization(Document $document): Document
     {
         app(TenantContext::class)->withBusiness($document->business, function () use ($document): void {
             app(TransactionNormalizationService::class)->normalize($document);
+
+            if ($document->refresh()->processing_status === DocumentStatus::Matching) {
+                app(TransactionIntelligenceService::class)->process($document);
+            }
         });
 
         return $document->refresh();
+    }
+
+    /**
+     * Faktur pembelian yang sudah melewati seluruh pipeline hingga menghasilkan transaksi.
+     *
+     * @param  array<int, array<string, mixed>>|null  $fields
+     */
+    protected function normalizedPurchaseInvoice(
+        Business $business,
+        User $owner,
+        ?array $fields = null,
+        string $total = '1110000.00',
+    ): Document {
+        $document = $this->ingestDocument($business, $owner, $this->pdfFile());
+
+        $this->fakeParserSuccess([
+            [
+                'page_number' => 1,
+                'kind' => 'pdf_page',
+                'label' => 'invoice.pdf',
+                'text' => 'INVOICE INV/2026/0012 PT Sumber Kertas',
+                'rows' => null,
+                'needs_ocr' => false,
+                'metadata' => [],
+            ],
+        ], 'text');
+        $this->fakeClassifierSuccess('purchase_invoice', 0.97);
+        $this->fakeExtractorResponse($fields ?? $this->invoiceFields(total: $total, confidence: 0.96), confidence: 0.96);
+
+        return $this->runIntelligencePipeline($document);
     }
 
     /**

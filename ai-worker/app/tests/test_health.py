@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.config import WORKER_VERSION
 from app.main import create_app
 
 client = TestClient(create_app())
@@ -12,7 +13,7 @@ def test_health_endpoint_reports_ok() -> None:
 
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "0.4.0"
+    assert payload["version"] == WORKER_VERSION
     assert "null" in payload["available_providers"]
 
 
@@ -52,9 +53,9 @@ def test_health_lists_document_types_that_have_extractor() -> None:
     } <= extractable
 
 
-def test_health_does_not_claim_normalization_capability() -> None:
-    """Transaction normalization adalah Phase 5 (plan.md §37 Phase 5)."""
-    capabilities = client.get("/health").json()["capabilities"]
+def test_health_reports_economic_event_capability() -> None:
+    """Phase 8 menambahkan klasifikasi peristiwa ekonomi (plan.md §37 Phase 8)."""
+    payload = client.get("/health").json()
 
-    assert "transaction_normalize" not in capabilities
-    assert "economic_event_classify" not in capabilities
+    assert "economic_event_classify" in payload["capabilities"]
+    assert "transaction_normalize" not in payload["capabilities"]

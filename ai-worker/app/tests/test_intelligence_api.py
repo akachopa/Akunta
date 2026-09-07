@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.main import create_app
 from app.providers.base import AIProviderInterface, ProviderResult, ProviderUsage
 from app.providers.registry import register_provider
-from app.taxonomy import DOCUMENT_TYPES
+from app.taxonomy import DOCUMENT_TYPES, ECONOMIC_EVENT_CODES
 
 client = TestClient(create_app())
 
@@ -70,7 +70,14 @@ class _RogueProvider(AIProviderInterface):
         )
 
     def classify_economic_event(self, payload: dict[str, Any]) -> ProviderResult:
-        raise NotImplementedError
+        return ProviderResult(
+            data={"event_code": "REVENUE_MAGIC", "confidence": 0.99, "reason": "karangan"},
+            provider=self.name,
+            model="rogue-1",
+            prompt_version="1.0",
+            latency_ms=1,
+            usage=ProviderUsage(),
+        )
 
 
 register_provider(_RogueProvider)
@@ -81,6 +88,7 @@ def test_taxonomy_endpoint_exposes_document_types() -> None:
     payload = client.get("/v1/classify/taxonomy").json()
 
     assert payload["document_types"] == list(DOCUMENT_TYPES)
+    assert payload["economic_event_codes"] == list(ECONOMIC_EVENT_CODES)
     assert "bank_statement" in payload["extractable_document_types"]
     assert "payroll" not in payload["extractable_document_types"]
 
@@ -232,18 +240,19 @@ def test_extract_money_is_never_serialised_as_a_number() -> None:
         assert item["value"] is None or isinstance(item["value"], str)
 
 
-@pytest.mark.parametrize("path", ["/v1/classify", "/v1/extract"])
+@pytest.mark.parametrize("path", ["/v1/classify", "/v1/extract", "/v1/classify-event"])
 def test_intelligence_endpoints_require_internal_token(path: str) -> None:
     """plan.md §30: request internal tetap harus terautentikasi."""
     settings = get_settings()
     original = settings.token
     settings.token = "rahasia-internal"
 
-    body = (
-        {"filename": "a.pdf", "pages": INVOICE_PAGES}
-        if path == "/v1/classify"
-        else {"document_type": "purchase_invoice", "pages": INVOICE_PAGES}
-    )
+    if path == "/v1/classify":
+        body: dict[str, Any] = {"filename": "a.pdf", "pages": INVOICE_PAGES}
+    elif path == "/v1/extract":
+        body = {"document_type": "purchase_invoice", "pages": INVOICE_PAGES}
+    else:
+        body = {"description": "BIAYA ADMIN", "amount": "1", "direction": "outflow"}
 
     try:
         assert client.post(path, json=body).status_code == 401
@@ -272,3 +281,31 @@ def test_classify_does_not_extract_and_extract_does_not_classify() -> None:
     assert "fields" not in classified
     assert "document_type" in extracted
     assert "alternatives" not in extracted
+
+
+def test_classify_event_returns_structured_json() -> None:
+    response = client.post(
+        "/v1/classify-event",
+        json={
+            "description": "BIAYA ADMIN",
+            "amount": "500000.00",
+            "direction": "outflow",
+            "document_type": "bank_statement",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["event_code"] == "BANK_FEE"
+    assert payload["event_code"] in ECONOMIC_EVENT_CODES
+    assert 0 <= payload["confidence"] <= 1
+
+
+def test_classify_event_rejects_output_outside_taxonomy_with_422() -> None:
+    response = client.post(
+        "/v1/classify-event",
+        json={"description": "x", "amount": "1", "direction": "inflow", "provider": "rogue"},
+    )
+
+    assert response.status_code == 422
+    assert "taksonomi" in response.json()["detail"]
