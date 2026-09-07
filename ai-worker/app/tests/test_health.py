@@ -12,7 +12,7 @@ def test_health_endpoint_reports_ok() -> None:
 
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "0.2.0"
+    assert payload["version"] == "0.3.0"
     assert "null" in payload["available_providers"]
 
 
@@ -20,13 +20,41 @@ def test_health_reports_parse_capability() -> None:
     """Phase 3 memasang parser deterministik (plan.md §13.1)."""
     payload = client.get("/health").json()
 
-    assert payload["capabilities"] == ["document_parse"]
+    assert "document_parse" in payload["capabilities"]
     assert set(payload["supported_extensions"]) >= {"csv", "jpg", "pdf", "png", "xlsx"}
 
 
-def test_health_does_not_claim_classifier_capability() -> None:
-    """Classifier dan extractor adalah Phase 4 (plan.md §37 Phase 4)."""
+def test_health_reports_intelligence_capability() -> None:
+    """Phase 4 menambahkan classifier dan extractor (plan.md §37 Phase 4)."""
+    payload = client.get("/health").json()
+
+    assert "document_classify" in payload["capabilities"]
+    assert "document_extract" in payload["capabilities"]
+
+
+def test_health_lists_providers_from_more_than_one_vendor() -> None:
+    """plan.md §44.12 melarang aplikasi terikat ke satu vendor AI."""
+    providers = client.get("/health").json()["available_providers"]
+
+    assert {"heuristic", "openai"} <= set(providers)
+
+
+def test_health_lists_document_types_that_have_extractor() -> None:
+    """Jenis dokumen prioritas plan.md §37 Phase 4 yang sudah punya extractor."""
+    extractable = set(client.get("/health").json()["extractable_document_types"])
+
+    assert {
+        "bank_statement",
+        "purchase_invoice",
+        "sales_invoice",
+        "receipt",
+        "qris_settlement",
+    } <= extractable
+
+
+def test_health_does_not_claim_normalization_capability() -> None:
+    """Transaction normalization adalah Phase 5 (plan.md §37 Phase 5)."""
     capabilities = client.get("/health").json()["capabilities"]
 
-    assert "document_classify" not in capabilities
-    assert "document_extract" not in capabilities
+    assert "transaction_normalize" not in capabilities
+    assert "economic_event_classify" not in capabilities
