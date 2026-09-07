@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Audit;
 
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Audit\Models\AuditLog;
 use App\Domain\Business\Models\Business;
 use App\Models\User;
@@ -71,11 +72,21 @@ class AuditLogger
         $changed = array_keys($entity->getChanges());
         $changed = array_values(array_diff($changed, ['updated_at']));
 
+        /*
+         * Nilai lama diambil dari snapshot RecordsAuditTrail karena `original` milik
+         * Eloquent sudah tersinkron dengan nilai baru begitu save selesai.
+         */
+        $original = $entity instanceof KeepsAuditSnapshot ? $entity->auditOriginal() : [];
+
         $before = [];
         $after = [];
 
         foreach ($changed as $attribute) {
-            $before[$attribute] = $this->stringify($entity->getOriginal($attribute));
+            $before[$attribute] = $this->stringify(
+                array_key_exists($attribute, $original)
+                    ? $original[$attribute]
+                    : $entity->getOriginal($attribute)
+            );
             $after[$attribute] = $this->stringify($entity->getAttribute($attribute));
         }
 

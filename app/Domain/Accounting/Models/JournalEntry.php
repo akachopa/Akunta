@@ -6,6 +6,8 @@ namespace App\Domain\Accounting\Models;
 
 use App\Domain\Accounting\Enums\JournalEntryStatus;
 use App\Domain\Accounting\Exceptions\ImmutablePostedJournal;
+use App\Domain\Audit\Concerns\RecordsAuditTrail;
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Tenancy\Concerns\BelongsToBusiness;
 use App\Models\User;
 use App\Support\Money;
@@ -30,9 +32,9 @@ use Illuminate\Support\Carbon;
  * @property string $total_credit
  * @property \Illuminate\Database\Eloquent\Collection<int, JournalEntryLine> $lines
  */
-class JournalEntry extends Model
+class JournalEntry extends Model implements KeepsAuditSnapshot
 {
-    use BelongsToBusiness, HasUuids;
+    use BelongsToBusiness, HasUuids, RecordsAuditTrail;
 
     public const SOURCE_MANUAL = 'manual';
 
@@ -67,7 +69,16 @@ class JournalEntry extends Model
         'total_debit',
         'total_credit',
         'created_by',
+        'submitted_by',
+        'submitted_at',
+        'approved_by',
+        'approved_at',
+        'posted_by',
+        'posted_at',
+        'reversed_by',
+        'reversed_at',
         'reversal_of_id',
+        'reversed_by_entry_id',
         'reversal_reason',
     ];
 

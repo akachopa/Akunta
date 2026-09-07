@@ -21,9 +21,14 @@ return Application::configure(basePath: dirname(__DIR__))
         apiPrefix: 'api/v1',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        /*
+         * ResolveTenant harus berada sebelum HandleInertiaRequests: Inertia membaca
+         * shared props saat middleware-nya masuk, sehingga tenant aktif harus sudah
+         * ditetapkan lebih dulu.
+         */
         $middleware->web(append: [
-            HandleInertiaRequests::class,
             ResolveTenant::class,
+            HandleInertiaRequests::class,
         ]);
 
         $middleware->api(append: [

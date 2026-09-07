@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Business\Models;
 
+use App\Domain\Audit\Concerns\RecordsAuditTrail;
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Tenancy\Concerns\BelongsToBusiness;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -14,9 +16,9 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $id
  * @property string $business_id
  */
-class BusinessProfile extends Model
+class BusinessProfile extends Model implements KeepsAuditSnapshot
 {
-    use BelongsToBusiness, HasUuids;
+    use BelongsToBusiness, HasUuids, RecordsAuditTrail;
 
     protected $fillable = [
         'business_id',

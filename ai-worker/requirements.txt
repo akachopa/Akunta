@@ -1,0 +1,7 @@
+# Dependensi runtime AI worker.
+# Parser PDF/spreadsheet/OCR dan SDK provider AI ditambahkan pada Phase 3–4, ketika
+# endpoint yang memakainya benar-benar dibangun (plan.md §37 Phase 3, Phase 4).
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic>=2.9
+pydantic-settings>=2.6

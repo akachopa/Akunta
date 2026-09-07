@@ -26,8 +26,11 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $business = $this->tenantContext->business();
 
+        /*
+         * Tenant aktif dibaca lewat closure, bukan di sini, supaya nilainya tetap benar
+         * tanpa bergantung pada urutan middleware.
+         */
         return [
             ...parent::share($request),
             'auth' => [
@@ -38,19 +41,23 @@ class HandleInertiaRequests extends Middleware
                     'is_platform_admin' => $user->is_platform_admin,
                 ] : null,
             ],
-            'currentBusiness' => $business instanceof Business ? [
-                'id' => $business->getKey(),
-                'name' => $business->name,
-                'currency' => $business->currency,
-                'business_type' => $business->business_type->value,
-            ] : null,
+            'currentBusiness' => function (): ?array {
+                $business = $this->tenantContext->business();
+
+                return $business instanceof Business ? [
+                    'id' => $business->getKey(),
+                    'name' => $business->name,
+                    'currency' => $business->currency,
+                    'business_type' => $business->business_type->value,
+                ] : null;
+            },
             'businesses' => fn (): array => $user instanceof User
                 ? $user->businesses()->orderBy('name')->get()->map(fn (Business $item): array => [
                     'id' => $item->getKey(),
                     'name' => $item->name,
                 ])->all()
                 : [],
-            'permissions' => fn (): array => $this->permissionsFor($user, $business),
+            'permissions' => fn (): array => $this->permissionsFor($user, $this->tenantContext->business()),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),

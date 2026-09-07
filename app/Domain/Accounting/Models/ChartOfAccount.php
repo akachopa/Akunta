@@ -8,6 +8,8 @@ use App\Domain\Accounting\Enums\AccountRole;
 use App\Domain\Accounting\Enums\AccountType;
 use App\Domain\Accounting\Enums\NormalBalance;
 use App\Domain\Accounting\Enums\ReportingGroup;
+use App\Domain\Audit\Concerns\RecordsAuditTrail;
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Tenancy\Concerns\BelongsToBusiness;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -31,9 +33,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $is_system
  * @property bool $is_active
  */
-class ChartOfAccount extends Model
+class ChartOfAccount extends Model implements KeepsAuditSnapshot
 {
-    use BelongsToBusiness, HasUuids;
+    use BelongsToBusiness, HasUuids, RecordsAuditTrail;
 
     protected $table = 'chart_of_accounts';
 

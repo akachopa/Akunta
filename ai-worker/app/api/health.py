@@ -1,0 +1,29 @@
+"""Health endpoint.
+
+plan.md §37 Phase 0 menjadikan "AI worker reachable" sebagai acceptance criteria.
+Endpoint ini sengaja tidak memerlukan autentikasi supaya dapat dipakai sebagai probe
+container, tetapi juga tidak membocorkan konfigurasi apa pun selain nama provider.
+"""
+
+from fastapi import APIRouter
+
+from app.config import get_settings
+from app.providers.registry import available_providers
+from app.schemas.health import HealthResponse
+
+router = APIRouter(tags=["health"])
+
+
+@router.get("/health", response_model=HealthResponse)
+def health() -> HealthResponse:
+    settings = get_settings()
+
+    return HealthResponse(
+        status="ok",
+        service=settings.app_name,
+        version="0.1.0",
+        environment=settings.environment,
+        default_provider=settings.default_provider,
+        available_providers=available_providers(),
+        capabilities=[],
+    )

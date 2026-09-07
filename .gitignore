@@ -31,3 +31,5 @@ Thumbs.db
 *.pyc
 /.pytest_cache
 /.ruff_cache
+/ai-worker/.pytest_cache
+/ai-worker/.ruff_cache

@@ -7,6 +7,8 @@ namespace App\Domain\Business\Models;
 use App\Domain\Accounting\Models\AccountingPeriod;
 use App\Domain\Accounting\Models\ChartOfAccount;
 use App\Domain\Accounting\Models\JournalEntry;
+use App\Domain\Audit\Concerns\RecordsAuditTrail;
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Business\Enums\AccountingBasis;
 use App\Domain\Business\Enums\BusinessType;
 use App\Models\User;
@@ -32,10 +34,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $currency
  * @property \Illuminate\Support\Carbon $opening_date
  */
-class Business extends Model
+class Business extends Model implements KeepsAuditSnapshot
 {
     /** @use HasFactory<\Database\Factories\BusinessFactory> */
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, RecordsAuditTrail, SoftDeletes;
 
     protected $fillable = [
         'organization_id',

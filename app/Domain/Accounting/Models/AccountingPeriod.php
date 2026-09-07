@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Accounting\Models;
 
 use App\Domain\Accounting\Enums\AccountingPeriodStatus;
+use App\Domain\Audit\Concerns\RecordsAuditTrail;
+use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Tenancy\Concerns\BelongsToBusiness;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -26,9 +28,9 @@ use Illuminate\Support\Carbon;
  * @property Carbon $end_date
  * @property AccountingPeriodStatus $status
  */
-class AccountingPeriod extends Model
+class AccountingPeriod extends Model implements KeepsAuditSnapshot
 {
-    use BelongsToBusiness, HasUuids;
+    use BelongsToBusiness, HasUuids, RecordsAuditTrail;
 
     protected $fillable = [
         'business_id',
