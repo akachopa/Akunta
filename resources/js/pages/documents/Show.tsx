@@ -5,7 +5,7 @@ import Card from '@/components/Card';
 import ConfidenceBadge from '@/components/ConfidenceBadge';
 import DocumentReviewPanel from '@/components/DocumentReviewPanel';
 import StatusBadge from '@/components/StatusBadge';
-import { formatBytes, formatDateTime, formatDuration } from '@/lib/money';
+import { formatBytes, formatDateTime, formatDuration, formatMoney } from '@/lib/money';
 import type { DocumentDetail, DocumentPage } from '@/types';
 
 interface Props {
@@ -19,6 +19,10 @@ const POLL_INTERVAL_MS = 4000;
 // Baris yang ditampilkan per halaman tabular. Sisanya tetap tersimpan; pemotongan ini
 // hanya menjaga halaman viewer tetap ringan.
 const PREVIEW_ROW_LIMIT = 50;
+
+// Transaksi yang ditampilkan langsung di halaman dokumen. Selebihnya dibuka pada daftar
+// transaksi yang dipaginasi di sisi server (plan.md §40).
+const TRANSACTION_PREVIEW_LIMIT = 10;
 
 function PagePreview({ page }: { page: DocumentPage }) {
     if (page.needs_ocr) {
@@ -237,6 +241,71 @@ export default function DocumentShow({ business, document, can }: Props) {
                         document={document}
                         canReview={can.review}
                     />
+                )}
+
+                {/*
+                 * Penelusuran maju: dari berkas ke transaksi yang lahir darinya. Satu
+                 * rekening koran dapat menghasilkan ratusan baris, jadi yang ditampilkan
+                 * hanya sebagian dengan tautan ke daftar penuhnya (plan.md §45.12).
+                 */}
+                {document.transactions.length > 0 && (
+                    <Card
+                        title="Transaksi Dihasilkan"
+                        description={`${document.transactions.length} transaksi terbentuk dari dokumen ini.`}
+                        actions={
+                            <Link
+                                href={`/businesses/${business.id}/transactions?document=${document.id}`}
+                                className="rounded-md border border-slate-300 px-3 py-1 text-sm hover:bg-slate-100"
+                            >
+                                Lihat semua
+                            </Link>
+                        }
+                    >
+                        <ul className="divide-y divide-slate-100">
+                            {document.transactions
+                                .slice(0, TRANSACTION_PREVIEW_LIMIT)
+                                .map((transaction) => (
+                                    <li
+                                        key={transaction.id}
+                                        className="flex flex-wrap items-center gap-3 py-2 text-sm"
+                                    >
+                                        <Link
+                                            href={`/businesses/${business.id}/transactions/${transaction.id}`}
+                                            className="w-28 shrink-0 font-mono text-xs text-teal-700 hover:underline"
+                                        >
+                                            {transaction.reference}
+                                        </Link>
+                                        <span className="w-24 shrink-0 text-slate-600">
+                                            {transaction.transaction_date}
+                                        </span>
+                                        <span className="min-w-0 flex-1 truncate text-slate-800">
+                                            {transaction.description}
+                                        </span>
+                                        <span
+                                            className={`shrink-0 font-mono text-xs ${
+                                                transaction.direction === 'inflow'
+                                                    ? 'text-teal-700'
+                                                    : 'text-slate-800'
+                                            }`}
+                                        >
+                                            {transaction.direction === 'inflow' ? '+' : '−'}{' '}
+                                            {formatMoney(transaction.amount, transaction.currency)}
+                                        </span>
+                                        <StatusBadge
+                                            status={transaction.status}
+                                            label={transaction.status_label}
+                                        />
+                                    </li>
+                                ))}
+                        </ul>
+
+                        {document.transactions.length > TRANSACTION_PREVIEW_LIMIT && (
+                            <p className="mt-2 text-xs text-slate-500">
+                                Menampilkan {TRANSACTION_PREVIEW_LIMIT} dari{' '}
+                                {document.transactions.length} transaksi.
+                            </p>
+                        )}
+                    </Card>
                 )}
 
                 <Card

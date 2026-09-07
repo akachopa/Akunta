@@ -25,6 +25,12 @@ const TONE: Record<string, string> = {
     failed: 'bg-rose-100 text-rose-800',
     archived: 'bg-slate-200 text-slate-800',
 
+    // Status transaksi (plan.md §25.2) yang belum dipakai status dokumen.
+    detected: 'bg-slate-100 text-slate-700',
+    normalized: 'bg-sky-100 text-sky-800',
+    classified: 'bg-violet-100 text-violet-800',
+    rejected: 'bg-rose-100 text-rose-800',
+
     // Status percobaan tahap pipeline (document_processing_jobs).
     pending: 'bg-slate-100 text-slate-600',
     running: 'bg-sky-100 text-sky-800',

@@ -226,6 +226,72 @@ export interface DocumentDetail extends DocumentSummary {
     extractions: DocumentExtractionAttempt[];
     classification: DocumentClassification | null;
     documentTypes: DocumentTypeOption[];
+    transactions: TransactionSummary[];
+}
+
+export type TransactionDirection = 'inflow' | 'outflow';
+
+export type TransactionSourceType =
+    'bank_statement' | 'invoice' | 'receipt' | 'settlement' | 'spreadsheet';
+
+/**
+ * Transaksi canonical hasil normalisasi (plan.md §8.2).
+ *
+ * `amount` selalu positif dan bertanda lewat `direction`. Nilainya string karena plan.md
+ * §44.14 melarang float untuk uang, dan number JavaScript adalah float.
+ */
+export interface TransactionSummary {
+    id: string;
+    reference: string;
+    transaction_date: string;
+    posting_date: string | null;
+    description: string;
+    amount: string;
+    direction: TransactionDirection;
+    direction_label: string;
+    currency: string;
+    counterparty_name: string | null;
+    source_type: TransactionSourceType;
+    source_type_label: string;
+    status: string;
+    status_label: string;
+    needs_attention: boolean;
+    overall_confidence: string | null;
+    review_reason: string | null;
+    normalized_at: string | null;
+    source?: TransactionSource | null;
+}
+
+export interface TransactionSource {
+    source_type: TransactionSourceType;
+    source_type_label: string;
+    source_reference: string;
+    row_index: number | null;
+    page_number: number | null;
+    document: {
+        id: string;
+        reference: string;
+        original_filename: string;
+        document_type: string | null;
+        document_type_label: string | null;
+    } | null;
+}
+
+export interface TransactionEvidence {
+    id: string;
+    type: 'document' | 'bank_row' | 'spreadsheet_row' | 'document_field';
+    type_label: string;
+    document_id: string;
+    row_reference: string | null;
+    page_number: number | null;
+    field_key: string | null;
+    field_label: string | null;
+    note: string | null;
+}
+
+export interface TransactionDetail extends TransactionSummary {
+    source: TransactionSource | null;
+    evidence: TransactionEvidence[];
 }
 
 export interface TrialBalanceRow {
