@@ -17,12 +17,13 @@ use Illuminate\Support\Facades\DB;
  * Perhitungan trial balance (plan.md §37 Phase 2, §21.1).
  *
  * plan.md §44.5 melarang perhitungan laporan dari raw transaction table dan §45.11
- * mewajibkan seluruh laporan hanya mengambil data dari posted journal. Karena itu query
- * di sini selalu difilter ke journal_entries.status = 'posted'.
+ * mewajibkan seluruh laporan hanya mengambil data dari journal yang sudah diposting.
+ * Karena itu query di sini selalu difilter ke JournalEntryStatus::ledgerStatuses().
  *
- * Reversal entry ikut terhitung karena ia sendiri berstatus posted; entry asli yang
- * berstatus 'reversed' tidak ikut, sehingga pasangan asli+reversal saling menghapus
- * tanpa perlu perlakuan khusus.
+ * Status 'reversed' termasuk di dalamnya: barisnya pernah diposting dan tetap berada di
+ * ledger. Yang menghapus pengaruhnya adalah reversal entry pasangannya yang berstatus
+ * 'posted' (plan.md §44.6), sehingga keduanya saling menetralkan. Mengeluarkan entry
+ * 'reversed' dari query justru menyisakan sisi reversal tanpa sisi aslinya.
  */
 class TrialBalanceService
 {
@@ -77,7 +78,7 @@ class TrialBalanceService
             ->join('journal_entries as entries', 'entries.id', '=', 'lines.journal_entry_id')
             ->selectRaw('lines.account_id, SUM(lines.debit) AS total_debit, SUM(lines.credit) AS total_credit')
             ->where('entries.business_id', $business->getKey())
-            ->where('entries.status', JournalEntryStatus::Posted->value)
+            ->whereIn('entries.status', JournalEntryStatus::ledgerStatuses())
             ->whereDate('entries.entry_date', '>=', $from->toDateString())
             ->whereDate('entries.entry_date', '<=', $to->toDateString())
             ->groupBy('lines.account_id')

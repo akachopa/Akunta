@@ -49,7 +49,14 @@ enum JournalEntryStatus: string
     }
 
     /**
-     * Hanya entry berstatus posted yang boleh masuk laporan (plan.md §45.11).
+     * Apakah baris entry ini sudah masuk ledger.
+     *
+     * plan.md §45.11 mewajibkan laporan hanya mengambil journal yang sudah diposting.
+     * Entry berstatus `reversed` termasuk di dalamnya: barisnya pernah diposting dan
+     * tetap berada di ledger. Yang menghapus pengaruhnya adalah reversal entry
+     * pasangannya, bukan penghapusan entry aslinya (plan.md §44.6). Mengeluarkan entry
+     * `reversed` dari laporan justru menyisakan sisi reversal tanpa sisi aslinya dan
+     * membalik saldo akun.
      */
     public function affectsLedger(): bool
     {
@@ -57,6 +64,19 @@ enum JournalEntryStatus: string
             self::Posted, self::Reversed => true,
             default => false,
         };
+    }
+
+    /**
+     * Status yang barisnya sudah berada di ledger.
+     *
+     * @return array<int, string>
+     */
+    public static function ledgerStatuses(): array
+    {
+        return array_values(array_map(
+            static fn (self $case): string => $case->value,
+            array_filter(self::cases(), static fn (self $case): bool => $case->affectsLedger())
+        ));
     }
 
     public function isEditable(): bool

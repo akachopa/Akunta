@@ -215,7 +215,7 @@ class JournalEntry extends Model implements KeepsAuditSnapshot
     }
 
     /**
-     * Hanya posted journal yang boleh masuk laporan (plan.md §45.11).
+     * Entry yang statusnya masih 'posted', belum dibalik.
      *
      * @param  Builder<static>  $query
      * @return Builder<static>
@@ -223,6 +223,19 @@ class JournalEntry extends Model implements KeepsAuditSnapshot
     public function scopePosted(Builder $query): Builder
     {
         return $query->where('status', JournalEntryStatus::Posted->value);
+    }
+
+    /**
+     * Entry yang barisnya berada di ledger, satu-satunya sumber angka laporan
+     * (plan.md §45.11). Entry 'reversed' termasuk karena reversal pasangannya yang
+     * menetralkan pengaruhnya, bukan penghapusan entry aslinya (plan.md §44.6).
+     *
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public function scopeAffectingLedger(Builder $query): Builder
+    {
+        return $query->whereIn('status', JournalEntryStatus::ledgerStatuses());
     }
 
     /**
