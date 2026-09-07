@@ -1,4 +1,4 @@
-import type { ConfidenceBand } from '@/types';
+import type { ConfidenceAssessment, ConfidenceBand } from '@/types';
 
 const TONE: Record<ConfidenceBand, string> = {
     ready: 'bg-teal-100 text-teal-800',
@@ -25,6 +25,36 @@ export function formatConfidence(value: string | null | undefined): string {
     }
 
     return `${Math.round(numeric * 100)}%`;
+}
+
+/**
+ * Pita untuk satu nilai terhadap ambang dokumen (plan.md §15.2).
+ *
+ * Keputusan pita dokumen tetap dihitung backend; ini hanya mewarnai badge per field supaya
+ * angka 88% tidak tampil senetral 100%. Ambangnya diambil dari assessment dokumen agar
+ * warnanya mengikuti pengaturan bisnis, bukan konstanta yang tertanam di frontend.
+ */
+export function bandFor(
+    confidence: string | null | undefined,
+    assessment: ConfidenceAssessment | null | undefined,
+): ConfidenceBand | null {
+    if (confidence === null || confidence === undefined || !assessment) {
+        return null;
+    }
+
+    const numeric = Number(confidence);
+
+    if (Number.isNaN(numeric)) {
+        return null;
+    }
+
+    if (numeric >= Number(assessment.auto_ready_threshold)) {
+        return 'ready';
+    }
+
+    return numeric >= Number(assessment.review_threshold)
+        ? 'review_recommended'
+        : 'human_confirmation_required';
 }
 
 interface Props {

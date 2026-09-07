@@ -2,7 +2,7 @@ import { router } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 
 import Card from '@/components/Card';
-import ConfidenceBadge, { formatConfidence } from '@/components/ConfidenceBadge';
+import ConfidenceBadge, { bandFor, formatConfidence } from '@/components/ConfidenceBadge';
 import StatusBadge from '@/components/StatusBadge';
 import { formatDateTime } from '@/lib/money';
 import type { DocumentDetail, DocumentField } from '@/types';
@@ -210,7 +210,13 @@ export default function DocumentReviewPanel({ businessId, document, canReview }:
                                                     className="w-56 rounded-md border border-slate-300 px-2 py-1 text-sm disabled:bg-slate-50"
                                                 />
 
-                                                <ConfidenceBadge confidence={field.confidence} />
+                                                <ConfidenceBadge
+                                                    confidence={field.confidence}
+                                                    band={bandFor(
+                                                        field.confidence,
+                                                        document.confidence,
+                                                    )}
+                                                />
 
                                                 {field.is_confirmed && (
                                                     <span className="text-xs text-teal-700">
