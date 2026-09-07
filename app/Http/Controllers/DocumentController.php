@@ -110,6 +110,7 @@ class DocumentController extends Controller
             'fields.confirmer',
             'extractions',
             'predictions.candidates',
+            'transactions',
         ]);
 
         $user = $request->user();

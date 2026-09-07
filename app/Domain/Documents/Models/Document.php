@@ -15,12 +15,15 @@ use App\Domain\Documents\Enums\DocumentTypeSource;
 use App\Domain\Documents\Enums\ExtractionStatus;
 use App\Domain\Documents\Exceptions\InvalidDocumentTransition;
 use App\Domain\Tenancy\Concerns\BelongsToBusiness;
+use App\Domain\Transactions\Models\Transaction;
+use App\Domain\Transactions\Models\TransactionSource;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Support\Carbon;
@@ -230,6 +233,28 @@ class Document extends Model implements KeepsAuditSnapshot
         return $this->hasOne(DocumentExtraction::class)
             ->where('status', ExtractionStatus::Accepted->value)
             ->orderByDesc('attempt');
+    }
+
+    /**
+     * Transaksi yang dihasilkan dokumen ini (plan.md §45.12 traceability).
+     *
+     * Melalui `transaction_sources`, bukan foreign key pada transactions, karena Phase 7
+     * akan mengaitkan satu transaksi dengan beberapa dokumen dan hubungan itu tidak dapat
+     * diwakili satu kolom. Diurutkan mengikuti urutan baris sumbernya supaya rekening koran
+     * tampil dalam urutan yang sama dengan berkas aslinya.
+     *
+     * @return HasManyThrough<Transaction, TransactionSource, $this>
+     */
+    public function transactions(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            Transaction::class,
+            TransactionSource::class,
+            'document_id',
+            'id',
+            'id',
+            'transaction_id'
+        )->orderBy('transaction_sources.row_index')->orderBy('transactions.reference');
     }
 
     /**

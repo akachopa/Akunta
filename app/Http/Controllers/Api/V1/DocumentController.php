@@ -109,6 +109,7 @@ class DocumentController extends Controller
             'fields.confirmer',
             'extractions',
             'predictions.candidates',
+            'transactions',
         ]);
 
         return response()->json(['data' => $this->presenter->detail($document)]);

@@ -9,14 +9,15 @@ use App\Http\Controllers\Api\V1\BusinessController;
 use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\JournalController;
 use App\Http\Controllers\Api\V1\ReportController;
+use App\Http\Controllers\Api\V1\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 /*
  * Prefix /api/v1 dikonfigurasi di bootstrap/app.php (plan.md §29).
  *
- * Endpoint yang tersedia dibatasi pada Phase 1–4: auth, businesses, accounts, journals,
- * periods, trial balance, documents, dan review dokumen. Endpoint transactions,
- * reconciliation, dan AI analyst pada plan.md §29.4–§29.5 dan §29.10 belum dibuat karena
+ * Endpoint yang tersedia dibatasi pada Phase 1–5: auth, businesses, accounts, journals,
+ * periods, trial balance, documents, review dokumen, dan pembacaan transaksi. Tindakan atas
+ * transaksi (plan.md §29.4), reconciliation §29.5, dan AI analyst §29.10 belum dibuat karena
  * berada di phase berikutnya.
  */
 
@@ -40,6 +41,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
             ->middleware('throttle:30,1')
             ->name('api.documents.store');
 
+        Route::get('businesses/{business}/transactions', [TransactionController::class, 'index'])
+            ->name('api.transactions.index');
+
         Route::get('businesses/{business}/accounts', [AccountController::class, 'index'])->name('api.accounts.index');
         Route::post('businesses/{business}/accounts', [AccountController::class, 'store'])->name('api.accounts.store');
 
@@ -56,10 +60,12 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('api.documents.reprocess');
     Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('api.documents.archive');
 
-    // plan.md §29.8 sebatas yang menyangkut dokumen; review transaksi menyusul pada Phase 5.
+    // plan.md §29.8 sebatas yang menyangkut dokumen; review transaksi menyusul pada Phase 10.
     Route::post('documents/{document}/review/type', [DocumentController::class, 'confirmType'])->name('api.documents.review.type');
     Route::post('documents/{document}/review/fields', [DocumentController::class, 'confirmFields'])->name('api.documents.review.fields');
     Route::post('documents/{document}/review/approve', [DocumentController::class, 'approve'])->name('api.documents.review.approve');
+
+    Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('api.transactions.show');
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])->name('api.journals.show');
     Route::post('journals/{journal}/approve', [JournalController::class, 'approve'])->name('api.journals.approve');

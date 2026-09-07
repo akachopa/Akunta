@@ -12,6 +12,7 @@ use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Business\Enums\AccountingBasis;
 use App\Domain\Business\Enums\BusinessType;
 use App\Domain\Documents\Models\Document;
+use App\Domain\Transactions\Models\Transaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -140,6 +141,14 @@ class Business extends Model implements KeepsAuditSnapshot
     public function documents(): HasMany
     {
         return $this->hasMany(Document::class);
+    }
+
+    /**
+     * @return HasMany<Transaction, $this>
+     */
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(Transaction::class);
     }
 
     /*

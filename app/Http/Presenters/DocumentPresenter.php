@@ -14,6 +14,7 @@ use App\Domain\Documents\Models\DocumentExtraction;
 use App\Domain\Documents\Models\DocumentField;
 use App\Domain\Documents\Models\DocumentPage;
 use App\Domain\Documents\Models\DocumentProcessingJob;
+use App\Domain\Transactions\Models\Transaction;
 use App\Services\Ai\ConfidenceEngine;
 
 /**
@@ -27,7 +28,10 @@ use App\Services\Ai\ConfidenceEngine;
  */
 class DocumentPresenter
 {
-    public function __construct(private readonly ConfidenceEngine $confidence) {}
+    public function __construct(
+        private readonly ConfidenceEngine $confidence,
+        private readonly TransactionPresenter $transactions,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -109,6 +113,19 @@ class DocumentPresenter
                 ->map(fn (DocumentExtraction $extraction): array => $this->extraction($extraction))
                 ->all(),
             'classification' => $this->classification($document),
+
+            /*
+             * Transaksi yang dihasilkan dokumen ini. Ditampilkan pada halaman dokumen, bukan
+             * hanya pada halaman transaksi, karena penelusuran yang dibutuhkan reviewer
+             * berjalan dua arah: dari transaksi ke berkasnya, dan dari berkas ke transaksi
+             * yang lahir darinya (plan.md §45.12).
+             */
+            'transactions' => $document->relationLoaded('transactions')
+                ? $document->transactions
+                    ->map(fn (Transaction $transaction): array => $this->transactions->summary($transaction))
+                    ->all()
+                : [],
+
             'documentTypes' => array_map(
                 static fn (DocumentType $type): array => ['value' => $type->value, 'label' => $type->label()],
                 array_values(DocumentType::selectableOnUpload())

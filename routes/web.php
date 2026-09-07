@@ -13,6 +13,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\DocumentReviewController;
 use App\Http\Controllers\JournalEntryController;
+use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\TrialBalanceController;
 use Illuminate\Support\Facades\Route;
 
@@ -73,6 +74,13 @@ Route::middleware('auth')->group(function (): void {
             Route::post('documents/{document}/review/type', [DocumentReviewController::class, 'type'])->name('documents.review.type');
             Route::post('documents/{document}/review/fields', [DocumentReviewController::class, 'fields'])->name('documents.review.fields');
             Route::post('documents/{document}/review/approve', [DocumentReviewController::class, 'approve'])->name('documents.review.approve');
+
+            /*
+             * plan.md §37 Phase 5: transaksi canonical hasil normalisasi dokumen. Halaman
+             * ini menampilkan apa yang terbaca, bukan penafsiran akuntansinya.
+             */
+            Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
+            Route::get('transactions/{transaction}', [TransactionController::class, 'show'])->name('transactions.show');
 
             Route::get('accounts', [ChartOfAccountController::class, 'index'])->name('accounts.index');
             Route::post('accounts', [ChartOfAccountController::class, 'store'])->name('accounts.store');
