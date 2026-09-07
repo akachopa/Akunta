@@ -34,26 +34,31 @@ Keputusan struktur yang mengikuti `plan.md` §27 dan §28:
 
 ## 2. Scope Iterasi Ini
 
-**Phase 0, Phase 1, Phase 2, Phase 3, dan Phase 4.** Phase 3 baru dimulai setelah
-seluruh test Accounting Foundation Phase 2 lulus, sesuai `plan.md` §38 dan §48, dan
-Phase 4 dimulai setelah pipeline parsing Phase 3 lulus.
+**Phase 0, Phase 1, Phase 2, Phase 3, Phase 4, dan Phase 5.** Phase 3 baru dimulai setelah
+seluruh test Accounting Foundation Phase 2 lulus, sesuai `plan.md` §38 dan §48, Phase 4
+dimulai setelah pipeline parsing Phase 3 lulus, dan Phase 5 setelah Phase 4 lulus.
 
-Phase 5 ke atas (Transaction Normalization dan seterusnya) **tidak** dikerjakan. Batas
-Phase 4 adalah **data dokumen**, bukan transaksi: menentukan jenis dokumen, membaca
-field beserta buktinya, menilai keyakinannya, dan menyediakan jalur review manusia.
-Mengubah data itu menjadi canonical transaction, entity, economic event, dan jurnal
-adalah phase berikutnya.
+Phase 6 ke atas (Entity Resolution dan seterusnya) **tidak** dikerjakan. Batas Phase 5
+adalah **transaksi canonical**: apa yang terjadi, kapan, berapa nominalnya, dan ke arah
+mana uangnya bergerak, lengkap dengan penunjuk ke baris dokumen asalnya. Menetapkan
+*siapa* lawan transaksinya (entity), *apa* makna ekonominya (economic event), dan
+*jurnal* apa yang lahir darinya adalah phase berikutnya.
 
 Konsekuensi batas tersebut pada kode:
 
-- Tahap pipeline `plan.md` §13.1 yang dieksekusi adalah `parse`, `classify`, dan
-  `extract`. Tahap `normalize` dan `match` dicatat sebagai `pending` supaya jejaknya
+- Tahap pipeline `plan.md` §13.1 yang dieksekusi adalah `parse`, `classify`, `extract`,
+  dan `normalize`. Tahap `match` dan seterusnya dicatat sebagai `pending` supaya jejaknya
   terlihat, bukan diam-diam dilewati.
-- Dokumen berakhir di `ready` atau `need_review`. Status `normalizing` dan `matching`
-  tetap ada sebagai state `plan.md` §25.1, tetapi tidak ada dokumen yang memasukinya.
+- Dokumen berakhir di `ready` atau `need_review`. Status `matching` tetap ada sebagai
+  state `plan.md` §25.1, tetapi tidak ada dokumen yang memasukinya.
+- Transaksi berakhir di `normalized` atau `need_review`. Status `matching`, `classified`,
+  `ready`, `approved`, dan `posted` sudah ada pada state machine `plan.md` §25.2, tetapi
+  tidak ada kode Phase 5 yang mendorong transaksi ke sana.
+- Transaksi tidak memiliki kolom akun maupun debit/kredit, dan halamannya tidak
+  menampilkannya. Pemetaan akun adalah Phase 8–9 (`plan.md` §44.3, §44.4).
 - Tidak ada jurnal yang dihasilkan dari dokumen. `Document::readyForTransactionPipeline()`
-  adalah satu-satunya pintu yang akan dibaca Phase 5, dan pintu itu menuntut dokumen
-  READY **dan** ekstraksi berstatus `accepted`.
+  adalah pintu masuk normalisasi, dan pintu itu menuntut dokumen READY **dan** ekstraksi
+  berstatus `accepted`.
 - Provider AI default-nya heuristik berbasis aturan, sehingga seluruh pipeline dapat
   dijalankan dan diuji tanpa kredensial vendor. Provider OpenAI tersedia lewat
   konfigurasi (`plan.md` §13.3, §44.12).
@@ -255,9 +260,64 @@ Catatan implementasi yang perlu diketahui saat melanjutkan ke Phase 5:
 
 ---
 
-## 8. Testing Strategy Coverage (`plan.md` §33)
+## 8. Phase 5 — Transaction Normalization
 
-Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–4:
+Build items per `plan.md` §37 Phase 5.
+
+| # | Item | Status |
+| --- | --- | --- |
+| 5.1 | Tabel `transactions` + state machine `plan.md` §25.2 dan CHECK constraint nominal | Selesai |
+| 5.2 | Tabel `transaction_sources` (`plan.md` §23.5) + unique `(document_id, source_reference)` | Selesai |
+| 5.3 | Tabel `transaction_evidence` append-only (`plan.md` §8.4, §31) | Selesai |
+| 5.4 | Bank row parser: satu baris mutasi menjadi satu transaksi, arah dari kolom debit/kredit | Selesai |
+| 5.5 | Spreadsheet transaction parser: laporan POS/marketplace/konsinyasi berkolom nilai bertanda | Selesai |
+| 5.6 | Extractor `transaction_list` di worker + aturan klasifikasinya | Selesai |
+| 5.7 | Invoice → transaksi beserta bukti subtotal, pajak, dan nomor faktur | Selesai |
+| 5.8 | Struk pembelian → transaksi arus keluar | Selesai |
+| 5.9 | Settlement QRIS/e-wallet → nominal neto, bruto dan MDR sebagai bukti (`plan.md` §19.2) | Selesai |
+| 5.10 | Canonical transaction: tanggal, deskripsi, nominal string, arah, mata uang, lawan transaksi | Selesai |
+| 5.11 | Source reference per unit sumber (`row:{n}`, `document`) + `row_index` dan `page_number` | Selesai |
+| 5.12 | Penomoran `TRX-{n}` berurutan per bisnis yang hanya maju | Selesai |
+| 5.13 | Tahap `normalize`: job, transisi status dokumen, retry, unik per dokumen | Selesai |
+| 5.14 | Idempotensi normalisasi ulang tanpa menimpa keputusan manusia | Selesai |
+| 5.15 | Validasi aritmetika normalisasi dengan BCMath (saldo, subtotal, bruto − MDR) | Selesai |
+| 5.16 | Confidence transaksi diwarisi dari dokumen sumbernya (`plan.md` §15.1) | Selesai |
+| 5.17 | Permission `transaction.view` + `TransactionPolicy` + tenant isolation | Selesai |
+| 5.18 | Audit log `document.normalized` (`plan.md` §31) | Selesai |
+| 5.19 | API `/api/v1` transactions index + detail (`plan.md` §29.4, sebatas baca) | Selesai |
+| 5.20 | UI Inertia: daftar transaksi bertab, detail sumber/bukti, tautan dua arah dengan dokumen | Selesai |
+
+Acceptance `plan.md` §37 Phase 5:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Satu rekening koran dapat menghasilkan banyak transaksi | Selesai | `TransactionNormalizationTest` (dua mutasi menjadi dua transaksi dengan arah berlawanan, laporan penjualan berkolom bertanda) |
+| Satu invoice menghasilkan transaksi/evidence sesuai kebutuhan | Selesai | `TransactionNormalizationTest` (faktur menjadi satu transaksi dengan bukti subtotal/pajak/nomor, settlement menyimpan bruto dan MDR sebagai bukti) |
+| Transaksi dapat ditelusuri ke sumbernya | Selesai | `TransactionNormalizationTest` (sumber menunjuk dokumen, ekstraksi, `row_index`, dan halaman) dan `TransactionInboxTest` (penelusuran dua arah lewat HTTP dan API) |
+
+Catatan implementasi yang perlu diketahui saat melanjutkan ke Phase 6:
+
+- Normalisasi bersifat **semua atau tidak sama sekali** per dokumen. Rekening koran yang
+  satu barisnya tidak konsisten menghasilkan nol transaksi dan dokumennya kembali ke
+  review, karena kas yang kehilangan satu mutasi tidak akan pernah dapat direkonsiliasi
+  (`plan.md` §19.1).
+- Nominal selalu positif; arahnya yang membawa tanda. Baris mutasi yang memuat debit dan
+  kredit sekaligus ditolak, dan setiap baris wajib menjelaskan perubahan saldonya.
+- Nomor transaksi diambil **sebelum** transaksi lama dibuang, sehingga normalisasi ulang
+  tidak memakai kembali nomor yang sudah pernah dilihat user untuk isi yang berbeda.
+- Transaksi yang sudah disetujui, diposting, atau ditolak tidak pernah diregenerasi.
+  Normalisasi berhenti dan mencatat alasannya alih-alih membatalkan keputusan manusia.
+- Settlement tidak dipecah menjadi pendapatan dan beban di sini. Nominalnya adalah neto —
+  uang yang benar-benar berpindah — dan bruto beserta MDR menempel sebagai bukti pada
+  transaksi yang sama, menunggu rule engine Phase 9.
+- Confidence transaksi adalah confidence dokumennya, karena normalisasi deterministik: ia
+  tidak menambah maupun mengurangi kepastian apa pun.
+
+---
+
+## 9. Testing Strategy Coverage (`plan.md` §33)
+
+Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–5:
 
 | Area | Status |
 | --- | --- |
@@ -270,22 +330,22 @@ Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–4:
 | Permissions | Selesai |
 | Document extraction validation | Selesai — `ExtractionValidator` diuji lewat `DocumentExtractionTest` |
 | Confidence engine | Selesai — `ConfidenceEngineTest` |
+| Transaction normalization | Selesai — `TransactionNormalizationTest` |
 
 `plan.md` §33.3 Accounting Golden Dataset: tersedia versi manual-journal
 (`GoldenDatasetTest` + `GoldenDatasetSeeder`) yang mencakup sales, purchases,
 operating expenses, owner transactions, loans, receivable/payable payments, QRIS
 settlement dengan MDR, dan internal bank transfer. Bagian dataset yang menuntut jurnal
-dihasilkan dari dokumen belum dikerjakan karena pembuatan transaksinya masuk Phase 5+.
+dihasilkan dari dokumen belum dikerjakan karena pemetaan akunnya masuk Phase 8+.
 
 ---
 
-## 9. Item `plan.md` yang BELUM Dikerjakan
+## 10. Item `plan.md` yang BELUM Dikerjakan
 
-Sengaja tidak dikerjakan karena berada di luar Phase 0–4.
+Sengaja tidak dikerjakan karena berada di luar Phase 0–5.
 
-### Di luar phase (Phase 5 ke atas)
+### Di luar phase (Phase 6 ke atas)
 
-- `plan.md` §37 Phase 5 — Transaction Normalization (bank row parser, canonical transaction).
 - `plan.md` §37 Phase 6 — Entity Resolution (entity master, aliases, fuzzy/AI matching).
 - `plan.md` §37 Phase 7 — Duplicate & Related Matching.
 - `plan.md` §37 Phase 8 — Economic Event Classification.
@@ -295,9 +355,9 @@ Sengaja tidak dikerjakan karena berada di luar Phase 0–4.
 - `plan.md` §37 Phase 12 — Reporting (income statement, balance sheet, cash flow, AP/AR, drill-down).
 - `plan.md` §37 Phase 13 — Closing Center (readiness score, checklist, issue detection).
 - `plan.md` §37 Phase 14 — AI Financial Analyst.
-- `plan.md` §13.1 — tahap pipeline `normalize`, `entity_resolution`, `duplicate_check`,
+- `plan.md` §13.1 — tahap pipeline `entity_resolution`, `duplicate_check`,
   `event_classification`, `journal_generation`, dan `review_routing`. Yang dieksekusi
-  sampai Phase 4 adalah `parse`, `classify`, dan `extract`.
+  sampai Phase 5 adalah `parse`, `classify`, `extract`, dan `normalize`.
 - `plan.md` §14 — prompt contract `classify_economic_event`. Kontraknya sudah ada di
   worker sebagai antarmuka provider, tetapi belum dipakai karena economic event adalah
   Phase 8. `classify_document` dan `extract_document` sudah dipakai.
@@ -323,8 +383,8 @@ Sengaja tidak dikerjakan karena berada di luar Phase 0–4.
 
 Tabel `plan.md` §23 yang belum dibuat karena milik phase berikutnya:
 `entities`, `entity_aliases`, `entity_identifiers`, `entity_relationships`,
-`transactions`, `transaction_sources`, `transaction_evidence`, `transaction_relations`,
-`transaction_tags`, `economic_event_types`, `economic_event_predictions`,
+`transaction_relations`, `transaction_tags`, `economic_event_types`,
+`economic_event_predictions`,
 `accounting_rules`, `accounting_rule_lines`, `review_tasks`, `review_actions`,
 `review_comments`, `reconciliations`, `reconciliation_items`, `reconciliation_matches`,
 `closing_periods`, `closing_checklists`, `closing_issues`.
@@ -334,8 +394,9 @@ bagian onboarding bisnis di `plan.md` §5.1. `documents`, `document_files`,
 `document_pages`, dan `document_processing_jobs` dibuat pada Phase 3.
 `document_extractions`, `document_fields`, `ai_model_runs`, `ai_usage_logs`,
 `ai_predictions`, `ai_prediction_candidates`, dan `ai_feedback` dibuat pada Phase 4.
+`transactions`, `transaction_sources`, dan `transaction_evidence` dibuat pada Phase 5.
 
-### Dalam scope Phase 0–4 tetapi butuh infrastruktur eksternal
+### Dalam scope Phase 0–5 tetapi butuh infrastruktur eksternal
 
 - `plan.md` §37 Phase 0 — deploy aktual ke staging. Repo sudah menyediakan Docker image,
   compose, dan CI, tetapi eksekusi deployment butuh host/registry/kredensial.
@@ -348,19 +409,19 @@ bagian onboarding bisnis di `plan.md` §5.1. `documents`, `document_files`,
 
 ---
 
-## 10. Verifikasi Iterasi Ini
+## 11. Verifikasi Iterasi Ini
 
 Perintah di bawah dijalankan pada commit terakhir branch ini, terhadap PostgreSQL 16 dan
 Redis 7 yang benar-benar berjalan.
 
 | Perintah | Hasil |
 | --- | --- |
-| `php artisan migrate:fresh --seed` | Seluruh 28 migration dan kedua seeder jalan tanpa error |
-| `php artisan test` | 325 test, 1557 assertion, seluruhnya lulus |
+| `php artisan migrate:fresh --seed` | Seluruh 31 migration dan kedua seeder jalan tanpa error |
+| `php artisan test` | 351 test, 1799 assertion, seluruhnya lulus |
 | `vendor/bin/pint --test` | Lolos |
 | `vendor/bin/phpstan analyse` | Level 6, tanpa error |
 | `npm run lint` / `format:check` / `types` / `build` | Seluruhnya lolos |
-| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 138 test worker lulus |
+| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 146 test worker lulus |
 | `php artisan akunta:health --dispatch-queue-probe` | database, cache, object_storage, ai_worker, dan queue berstatus OK |
 | `php artisan queue:work --stop-when-empty` | `QueueHeartbeatJob` dieksekusi sampai selesai |
 
@@ -375,6 +436,8 @@ Distribusi test:
 | Phase 3 (worker) | `test_parsers.py`, `test_parse_api.py`, `test_health.py` |
 | Phase 4 | `DocumentClassificationTest`, `DocumentExtractionTest`, `DocumentReviewTest`, `ConfidenceEngineTest`, tambahan pada `DocumentEnumTest` |
 | Phase 4 (worker) | `test_classifier.py`, `test_extractors.py`, `test_intelligence_api.py`, `test_providers.py`, `test_numbers.py` |
+| Phase 5 | `TransactionNormalizationTest`, `TransactionInboxTest`, tambahan pada `DocumentEnumTest` dan `ConfidenceEngineTest` |
+| Phase 5 (worker) | tambahan pada `test_extractors.py` dan `test_intelligence_api.py` untuk extractor `transaction_list` |
 
 Catatan koreksi accounting yang muncul dari test Phase 2: trial balance semula hanya
 membaca `journal_entries.status = 'posted'`, sehingga sebuah reversal entry ikut terhitung
@@ -403,6 +466,17 @@ Koreksi yang muncul dari test Phase 4:
 - `normalize_amount` pada worker semula memotong "1500" menjadi "150" karena cabang regex
   berpemisah ribuan menang lebih dulu. Cabang itu kini mewajibkan pemisahnya benar-benar
   ada.
+
+Koreksi yang muncul dari test Phase 5:
+
+- `TransactionNormalizationService` semula membuang transaksi lama lebih dulu, lalu
+  mengambil nomor baru. Karena penomoran dihitung dari transaksi yang ada, normalisasi
+  ulang memakai kembali `TRX-000001` untuk isi yang berbeda dari yang pernah dilihat user.
+  Nomor kini diambil sebelum penghapusan, sehingga penomorannya hanya maju.
+- Pita confidence `ready` semula mengarahkan dokumen langsung ke status `ready`. Dengan
+  adanya tahap normalisasi, dokumen yang lolos ambang kini masuk `normalizing` lebih dulu;
+  `ready` hanya diberikan setelah transaksinya benar-benar terbentuk atau setelah tercatat
+  bahwa jenis dokumen itu memang belum punya bentuk transaksi.
 
 Test Laravel tidak pernah memanggil worker Python: respons `/v1/parse`, `/v1/classify`,
 dan `/v1/extract` di-fake lewat `Tests\Support\UploadsDocuments`, sedangkan parser,

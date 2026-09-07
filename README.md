@@ -6,15 +6,17 @@ Akunta menghasilkan pembukuan double-entry yang benar, dan akuntan memverifikasi
 `plan.md` adalah source of truth untuk produk ini. Status implementasi per phase dicatat
 di [`docs/IMPLEMENTATION_CHECKLIST.md`](docs/IMPLEMENTATION_CHECKLIST.md).
 
-**Status saat ini: Phase 0, 1, 2, 3, dan 4 selesai.** Fondasinya multi-tenant,
-accounting-safe, punya source document yang immutable dan queue processing, serta kini
-membaca isi dokumen menjadi field terstruktur beserta tingkat keyakinannya.
+**Status saat ini: Phase 0, 1, 2, 3, 4, dan 5 selesai.** Fondasinya multi-tenant,
+accounting-safe, punya source document yang immutable dan queue processing, membaca isi
+dokumen menjadi field terstruktur beserta tingkat keyakinannya, dan mengubah field itu
+menjadi transaksi canonical yang dapat ditelusuri kembali ke baris dokumen asalnya.
 
-Phase 5 ke atas belum dikerjakan. Batasnya: Phase 4 berhenti pada **data dokumen** —
-jenis dokumen, field, baris mutasi, confidence, dan review manusia. Mengubahnya menjadi
-**transaksi** (canonical transaction, entity resolution, economic event, jurnal) adalah
-Phase 5 ke atas. Karena itu dokumen berakhir di status `ready` atau `need_review`, dan
-tidak ada satu pun jurnal yang dihasilkan otomatis dari dokumen.
+Phase 6 ke atas belum dikerjakan. Batasnya: Phase 5 berhenti pada **transaksi** — apa yang
+terjadi, kapan, berapa nominalnya, dan ke arah mana uangnya bergerak. Menetapkan *siapa*
+lawan transaksinya (entity resolution), *apa* makna ekonominya (economic event), dan
+*jurnal* apa yang lahir darinya adalah Phase 6 ke atas. Karena itu transaksi tidak
+memiliki kolom akun maupun debit/kredit, dan tidak ada satu pun jurnal yang dihasilkan
+otomatis dari dokumen.
 
 ## Arsitektur
 
@@ -34,8 +36,8 @@ SQLite.
 ### Struktur direktori
 
 ```
-app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Tenancy, Audit)
-app/Services/        Logika bisnis: posting journal, provisioning bisnis, pemrosesan dokumen, audit logger
+app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Transactions, Tenancy, Audit)
+app/Services/        Logika bisnis: posting journal, provisioning bisnis, pemrosesan dokumen, normalisasi transaksi, audit logger
 app/Jobs/            Queue job, termasuk pipeline pemrosesan dokumen
 app/Http/            Controller web (Inertia) dan API v1, middleware, form request, presenter
 ai-worker/           FastAPI worker: parser deterministik, classifier, extractor, abstraksi provider AI
@@ -130,6 +132,15 @@ Aturan berikut ada di `plan.md` §44 dan §45, dan setiap aturan punya test yang
   reviewer dapat memeriksanya alih-alih hanya mempercayainya.
 - Pernyataan manusia mengalahkan prediksi AI, dan prediksi yang dikalahkan tidak dihapus:
   ia menjadi bahan pengukuran akurasi.
+- Setiap transaksi menunjuk dokumen, baris, dan halaman asalnya. Tidak ada transaksi yang
+  muncul tanpa berkas yang dapat dibuka user.
+- Sebuah dokumen menghasilkan seluruh transaksinya atau tidak menghasilkan satu pun.
+  Rekening koran yang satu barisnya tidak konsisten dikembalikan ke review, bukan dipakai
+  separuh.
+- Nominal transaksi selalu positif; arah masuk atau keluarnya yang membawa tanda.
+- Nomor transaksi hanya maju. Normalisasi ulang tidak pernah memakai kembali nomor yang
+  sudah pernah dilihat user untuk isi yang berbeda, dan tidak menimpa transaksi yang sudah
+  disetujui, diposting, atau ditolak.
 
 ## Pipeline dokumen
 
@@ -137,7 +148,8 @@ Upload tidak memparse apa pun di dalam request: berkas asli disimpan lebih dulu,
 `ProcessDocumentJob` mengantre. Job mengirim berkas ke AI worker sebagai multipart,
 sehingga worker tidak perlu kredensial object storage.
 
-Tahapnya berurutan `parse → classify → extract`, masing-masing satu job tersendiri.
+Tahapnya berurutan `parse → classify → extract → normalize`, masing-masing satu job
+tersendiri.
 Pemisahan itu membuat kesalahan dapat dilokalisasi: dokumen yang salah dikenali jenisnya
 terlihat berbeda dari dokumen yang jenisnya benar tetapi angkanya salah baca.
 
@@ -160,10 +172,18 @@ percobaan `rejected` lengkap dengan raw output dan alasannya.
 
 Confidence engine kemudian mengambil komponen terlemah — bukan rata-rata — dan
 membandingkannya terhadap ambang yang dapat diatur per bisnis. Hanya dokumen di pita
-`ready` yang menjadi `ready` tanpa manusia; sisanya masuk antrean review, tempat
-reviewer menetapkan jenis dokumen, mengoreksi field, atau menyetujui dokumen. Setiap
-koreksi tercatat di `ai_feedback`, dan setiap panggilan provider tercatat di
-`ai_model_runs` beserta biayanya di `ai_usage_logs`.
+`ready` yang lanjut tanpa manusia; sisanya masuk antrean review, tempat reviewer
+menetapkan jenis dokumen, mengoreksi field, atau menyetujui dokumen. Setiap koreksi
+tercatat di `ai_feedback`, dan setiap panggilan provider tercatat di `ai_model_runs`
+beserta biayanya di `ai_usage_logs`.
+
+**Normalize.** Tahap ini deterministik dan tidak memanggil AI: ia membaca
+`document_fields` milik ekstraksi yang diterima lalu membentuk transaksi canonical. Satu
+rekening koran menghasilkan satu transaksi per baris mutasi, satu faktur atau struk
+menghasilkan satu transaksi, dan settlement QRIS menghasilkan satu transaksi bernominal
+neto dengan bruto serta MDR menempel sebagai bukti. Setiap transaksi menyimpan penunjuk ke
+dokumen, ekstraksi, baris, dan halaman asalnya, sehingga user dapat berjalan dua arah
+antara berkas dan transaksinya.
 
 Setiap percobaan tercatat di `document_processing_jobs` beserta durasi dan pesan
 kesalahannya, sehingga status di inbox dapat dipolling dan kegagalan dapat diusut.
