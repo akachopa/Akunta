@@ -25,7 +25,7 @@ class OrganizationFactory extends Factory
 
         return [
             'name' => $name,
-            'slug' => Str::slug($name).'-'.Str::lower(Str::random(5)),
+            'slug' => Str::slug($name) . '-' . Str::lower(Str::random(5)),
             'type' => Organization::TYPE_BUSINESS,
             'owner_id' => User::factory(),
         ];

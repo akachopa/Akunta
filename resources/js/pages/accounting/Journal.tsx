@@ -63,17 +63,33 @@ export default function Journal({ business, entries, filters, accounts, periods 
     const balanced = totalDebit > 0 && totalDebit === totalCredit;
 
     const updateLine = (index: number, patch: Partial<LineInput>) => {
-        setLines((current) => current.map((line, i) => (i === index ? { ...line, ...patch } : line)));
+        setLines((current) =>
+            current.map((line, i) => (i === index ? { ...line, ...patch } : line)),
+        );
     };
 
     const submit = () => {
+        /*
+         * Baris dikirim sebagai Record<string, string> karena FormDataConvertible hanya
+         * menerima object yang seluruh nilainya convertible. Nilai uang tetap string
+         * supaya tidak pernah melewati float (plan.md §44.14).
+         */
+        const payloadLines: Record<string, string>[] = lines
+            .filter((line) => line.account_id !== '')
+            .map((line) => ({
+                account_id: line.account_id,
+                description: line.description,
+                debit: line.debit,
+                credit: line.credit,
+            }));
+
         router.post(
             `/businesses/${business.id}/journals`,
             {
                 entry_date: form.data.entry_date,
                 description: form.data.description,
                 post: form.data.post,
-                lines: lines.filter((line) => line.account_id !== ''),
+                lines: payloadLines,
             },
             { preserveScroll: true },
         );
@@ -103,7 +119,9 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                 <input
                                     type="date"
                                     value={form.data.entry_date}
-                                    onChange={(event) => form.setData('entry_date', event.target.value)}
+                                    onChange={(event) =>
+                                        form.setData('entry_date', event.target.value)
+                                    }
                                     className="mt-1 rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 />
@@ -114,7 +132,9 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                 <input
                                     type="text"
                                     value={form.data.description}
-                                    onChange={(event) => form.setData('description', event.target.value)}
+                                    onChange={(event) =>
+                                        form.setData('description', event.target.value)
+                                    }
                                     className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 />
@@ -137,7 +157,9 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                             <select
                                                 value={line.account_id}
                                                 onChange={(event) =>
-                                                    updateLine(index, { account_id: event.target.value })
+                                                    updateLine(index, {
+                                                        account_id: event.target.value,
+                                                    })
                                                 }
                                                 className="w-full rounded-md border border-slate-300 px-2 py-1.5"
                                             >
@@ -154,7 +176,9 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                                 type="text"
                                                 value={line.description}
                                                 onChange={(event) =>
-                                                    updateLine(index, { description: event.target.value })
+                                                    updateLine(index, {
+                                                        description: event.target.value,
+                                                    })
                                                 }
                                                 className="w-full rounded-md border border-slate-300 px-2 py-1.5"
                                             />
@@ -165,7 +189,10 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                                 inputMode="decimal"
                                                 value={line.debit}
                                                 onChange={(event) =>
-                                                    updateLine(index, { debit: event.target.value, credit: '' })
+                                                    updateLine(index, {
+                                                        debit: event.target.value,
+                                                        credit: '',
+                                                    })
                                                 }
                                                 className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-right tabular-nums"
                                             />
@@ -176,7 +203,10 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                                 inputMode="decimal"
                                                 value={line.credit}
                                                 onChange={(event) =>
-                                                    updateLine(index, { credit: event.target.value, debit: '' })
+                                                    updateLine(index, {
+                                                        credit: event.target.value,
+                                                        debit: '',
+                                                    })
                                                 }
                                                 className="w-32 rounded-md border border-slate-300 px-2 py-1.5 text-right tabular-nums"
                                             />
@@ -189,14 +219,23 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                     <td className="py-2" colSpan={2}>
                                         <button
                                             type="button"
-                                            onClick={() => setLines((current) => [...current, { ...EMPTY_LINE }])}
+                                            onClick={() =>
+                                                setLines((current) => [
+                                                    ...current,
+                                                    { ...EMPTY_LINE },
+                                                ])
+                                            }
                                             className="text-xs text-teal-700 hover:underline"
                                         >
                                             + Tambah baris
                                         </button>
                                     </td>
-                                    <td className="py-2 text-right tabular-nums">{formatMoney(String(totalDebit))}</td>
-                                    <td className="py-2 text-right tabular-nums">{formatMoney(String(totalCredit))}</td>
+                                    <td className="py-2 text-right tabular-nums">
+                                        {formatMoney(String(totalDebit))}
+                                    </td>
+                                    <td className="py-2 text-right tabular-nums">
+                                        {formatMoney(String(totalCredit))}
+                                    </td>
                                 </tr>
                             </tfoot>
                         </table>
@@ -205,7 +244,9 @@ export default function Journal({ business, entries, filters, accounts, periods 
                             <span
                                 className={`text-sm ${balanced ? 'text-teal-700' : 'text-amber-700'}`}
                             >
-                                {balanced ? 'Debit dan kredit seimbang.' : 'Debit dan kredit belum seimbang.'}
+                                {balanced
+                                    ? 'Debit dan kredit seimbang.'
+                                    : 'Debit dan kredit belum seimbang.'}
                             </span>
 
                             <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -273,14 +314,20 @@ export default function Journal({ business, entries, filters, accounts, periods 
                                             {entry.entry_number}
                                         </Link>
                                     </td>
-                                    <td className="py-2 text-slate-600">{formatDate(entry.entry_date)}</td>
+                                    <td className="py-2 text-slate-600">
+                                        {formatDate(entry.entry_date)}
+                                    </td>
                                     <td className="py-2">{entry.description}</td>
                                     <td className="py-2 text-slate-600">{entry.period}</td>
                                     <td className="py-2">
                                         <StatusBadge status={entry.status} />
                                     </td>
-                                    <td className="py-2 text-right tabular-nums">{formatMoney(entry.total_debit)}</td>
-                                    <td className="py-2 text-right tabular-nums">{formatMoney(entry.total_credit)}</td>
+                                    <td className="py-2 text-right tabular-nums">
+                                        {formatMoney(entry.total_debit)}
+                                    </td>
+                                    <td className="py-2 text-right tabular-nums">
+                                        {formatMoney(entry.total_credit)}
+                                    </td>
                                 </tr>
                             ))}
                         </tbody>

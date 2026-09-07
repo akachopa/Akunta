@@ -18,7 +18,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('journal_entries', function (Blueprint $table) {
+        Schema::create('journal_entries', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained('businesses')->cascadeOnDelete();
             $table->foreignUuid('accounting_period_id')->constrained('accounting_periods')->restrictOnDelete();
@@ -61,7 +61,7 @@ return new class extends Migration
         });
 
         // Foreign key self-reference ditambahkan setelah primary key terbentuk.
-        Schema::table('journal_entries', function (Blueprint $table) {
+        Schema::table('journal_entries', function (Blueprint $table): void {
             $table->foreign('reversal_of_id')->references('id')->on('journal_entries')->nullOnDelete();
             $table->foreign('reversed_by_entry_id')->references('id')->on('journal_entries')->nullOnDelete();
         });

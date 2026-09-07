@@ -17,9 +17,7 @@ use Illuminate\Http\Request;
  */
 class AccountController extends Controller
 {
-    public function __construct(private readonly ChartOfAccountsService $service)
-    {
-    }
+    public function __construct(private readonly ChartOfAccountsService $service) {}
 
     public function index(Request $request, Business $business): JsonResponse
     {

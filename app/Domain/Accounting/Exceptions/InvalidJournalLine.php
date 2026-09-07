@@ -7,6 +7,4 @@ namespace App\Domain\Accounting\Exceptions;
 /**
  * Pelanggaran constraint baris journal pada plan.md §24.3.
  */
-final class InvalidJournalLine extends AccountingException
-{
-}
+final class InvalidJournalLine extends AccountingException {}

@@ -19,9 +19,7 @@ use Illuminate\Http\Request;
  */
 class AccountingPeriodController extends Controller
 {
-    public function __construct(private readonly AccountingPeriodService $periods)
-    {
-    }
+    public function __construct(private readonly AccountingPeriodService $periods) {}
 
     public function index(Business $business): JsonResponse
     {

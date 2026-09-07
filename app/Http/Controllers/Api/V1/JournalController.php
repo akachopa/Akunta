@@ -21,9 +21,7 @@ use Illuminate\Support\Carbon;
  */
 class JournalController extends Controller
 {
-    public function __construct(private readonly JournalPostingService $posting)
-    {
-    }
+    public function __construct(private readonly JournalPostingService $posting) {}
 
     public function index(Request $request, Business $business): JsonResponse
     {

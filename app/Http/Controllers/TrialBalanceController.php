@@ -14,9 +14,7 @@ use Inertia\Response;
 
 class TrialBalanceController extends Controller
 {
-    public function __construct(private readonly TrialBalanceService $trialBalance)
-    {
-    }
+    public function __construct(private readonly TrialBalanceService $trialBalance) {}
 
     public function __invoke(Request $request, Business $business): Response
     {

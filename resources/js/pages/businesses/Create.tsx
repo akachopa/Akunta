@@ -47,7 +47,8 @@ export default function BusinessCreate({ businessTypes, accountingBases, coaTemp
                             ...data,
                             coa_template_code: data.coa_template_code || undefined,
                             bank_accounts: data.bank_accounts.filter(
-                                (account) => account.label && account.bank_name && account.account_number,
+                                (account) =>
+                                    account.label && account.bank_name && account.account_number,
                             ),
                         }));
                         form.post('/businesses');

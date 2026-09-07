@@ -1,0 +1,5 @@
+ai-worker
+node_modules
+public/build
+storage
+vendor

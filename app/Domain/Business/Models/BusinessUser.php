@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * plan.md §23.1: business_users.
@@ -24,7 +25,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $user_id
  * @property string $role_id
  * @property bool $is_external
+ * @property Carbon|null $invited_at
+ * @property Carbon|null $joined_at
  * @property Role $role
+ * @property User $user
  */
 class BusinessUser extends Model
 {

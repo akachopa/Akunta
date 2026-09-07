@@ -47,11 +47,16 @@ export default function BusinessShow({ business, counts }: Props) {
             <Head title={business.name} />
 
             <div className="space-y-6">
-                <Card title={business.name} description={`${business.business_type} — ${business.organization}`}>
+                <Card
+                    title={business.name}
+                    description={`${business.business_type} — ${business.organization}`}
+                >
                     <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
                         <div>
                             <dt className="text-slate-500">Basis Akuntansi</dt>
-                            <dd className="font-medium text-slate-900">{business.accounting_basis}</dd>
+                            <dd className="font-medium text-slate-900">
+                                {business.accounting_basis}
+                            </dd>
                         </div>
                         <div>
                             <dt className="text-slate-500">Mata Uang</dt>
@@ -59,11 +64,15 @@ export default function BusinessShow({ business, counts }: Props) {
                         </div>
                         <div>
                             <dt className="text-slate-500">Tanggal Mulai</dt>
-                            <dd className="font-medium text-slate-900">{formatDate(business.opening_date)}</dd>
+                            <dd className="font-medium text-slate-900">
+                                {formatDate(business.opening_date)}
+                            </dd>
                         </div>
                         <div>
                             <dt className="text-slate-500">Nama Legal</dt>
-                            <dd className="font-medium text-slate-900">{business.legal_name ?? '—'}</dd>
+                            <dd className="font-medium text-slate-900">
+                                {business.legal_name ?? '—'}
+                            </dd>
                         </div>
                     </dl>
 
@@ -72,14 +81,18 @@ export default function BusinessShow({ business, counts }: Props) {
                             href={`/businesses/${business.id}/accounts`}
                             className="rounded-md border border-slate-200 px-4 py-3 hover:border-teal-300"
                         >
-                            <span className="block text-2xl font-semibold text-slate-900">{counts.accounts}</span>
+                            <span className="block text-2xl font-semibold text-slate-900">
+                                {counts.accounts}
+                            </span>
                             <span className="text-slate-500">Akun COA</span>
                         </Link>
                         <Link
                             href={`/businesses/${business.id}/periods`}
                             className="rounded-md border border-slate-200 px-4 py-3 hover:border-teal-300"
                         >
-                            <span className="block text-2xl font-semibold text-slate-900">{counts.periods}</span>
+                            <span className="block text-2xl font-semibold text-slate-900">
+                                {counts.periods}
+                            </span>
                             <span className="text-slate-500">Periode</span>
                         </Link>
                         <Link
@@ -94,7 +107,10 @@ export default function BusinessShow({ business, counts }: Props) {
                     </div>
                 </Card>
 
-                <Card title="Profil Bisnis" description="Data ini dipakai pada header laporan keuangan.">
+                <Card
+                    title="Profil Bisnis"
+                    description="Data ini dipakai pada header laporan keuangan."
+                >
                     <form
                         className="grid grid-cols-1 gap-4 md:grid-cols-2"
                         onSubmit={(event) => {
@@ -123,7 +139,9 @@ export default function BusinessShow({ business, counts }: Props) {
                                     className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
                                 />
                                 {form.errors[field] && (
-                                    <span className="mt-1 block text-xs text-rose-600">{form.errors[field]}</span>
+                                    <span className="mt-1 block text-xs text-rose-600">
+                                        {form.errors[field]}
+                                    </span>
                                 )}
                             </label>
                         ))}
@@ -168,8 +186,12 @@ export default function BusinessShow({ business, counts }: Props) {
                                     <tr key={account.id} className="border-b border-slate-100">
                                         <td className="py-2">{account.label}</td>
                                         <td className="py-2 text-slate-600">{account.bank_name}</td>
-                                        <td className="py-2 text-slate-600">{account.account_number}</td>
-                                        <td className="py-2 text-slate-600">{account.is_primary ? 'Ya' : '—'}</td>
+                                        <td className="py-2 text-slate-600">
+                                            {account.account_number}
+                                        </td>
+                                        <td className="py-2 text-slate-600">
+                                            {account.is_primary ? 'Ya' : '—'}
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

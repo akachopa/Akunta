@@ -20,9 +20,7 @@ use Inertia\Response;
 
 class JournalEntryController extends Controller
 {
-    public function __construct(private readonly JournalPostingService $posting)
-    {
-    }
+    public function __construct(private readonly JournalPostingService $posting) {}
 
     public function index(Request $request, Business $business): Response
     {
@@ -60,7 +58,7 @@ class JournalEntryController extends Controller
                 ->get(['id', 'code', 'name'])
                 ->map(static fn (ChartOfAccount $account): array => [
                     'id' => $account->getKey(),
-                    'label' => $account->code.' — '.$account->name,
+                    'label' => $account->code . ' — ' . $account->name,
                 ]),
             'periods' => AccountingPeriod::query()
                 ->forBusiness($business)

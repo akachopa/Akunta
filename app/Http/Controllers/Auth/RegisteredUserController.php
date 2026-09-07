@@ -16,9 +16,7 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-    public function __construct(private readonly BusinessProvisioningService $provisioning)
-    {
-    }
+    public function __construct(private readonly BusinessProvisioningService $provisioning) {}
 
     public function create(): Response
     {

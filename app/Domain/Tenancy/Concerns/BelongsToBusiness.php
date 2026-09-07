@@ -27,11 +27,16 @@ trait BelongsToBusiness
     {
         static::addGlobalScope(new BusinessScope);
 
+        /*
+         * business_id dibaca lewat getAttribute(), bukan lewat property, karena di sini
+         * model belum tersimpan sehingga kolomnya masih boleh kosong. Tipe property
+         * mendeskripsikan baris yang sudah ada di database, bukan keadaan pra-simpan.
+         */
         static::creating(function (self $model): void {
             $context = app(TenantContext::class);
 
-            if ($model->business_id === null && $context->has()) {
-                $model->business_id = $context->businessId();
+            if ($model->getAttribute('business_id') === null && $context->has()) {
+                $model->setAttribute('business_id', $context->businessId());
             }
         });
 
@@ -42,7 +47,9 @@ trait BelongsToBusiness
                 return;
             }
 
-            if ($model->business_id !== null && $model->business_id !== $context->businessId()) {
+            $businessId = $model->getAttribute('business_id');
+
+            if ($businessId !== null && $businessId !== $context->businessId()) {
                 throw new CrossTenantWriteAttempt(static::class);
             }
         });

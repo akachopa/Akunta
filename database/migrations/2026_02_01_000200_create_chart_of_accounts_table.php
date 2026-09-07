@@ -18,7 +18,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('chart_of_accounts', function (Blueprint $table) {
+        Schema::create('chart_of_accounts', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained('businesses')->cascadeOnDelete();
             $table->uuid('parent_id')->nullable();
@@ -43,7 +43,7 @@ return new class extends Migration
         });
 
         // Foreign key self-reference ditambahkan setelah primary key terbentuk.
-        Schema::table('chart_of_accounts', function (Blueprint $table) {
+        Schema::table('chart_of_accounts', function (Blueprint $table): void {
             $table->foreign('parent_id')->references('id')->on('chart_of_accounts')->nullOnDelete();
         });
 
@@ -65,7 +65,7 @@ return new class extends Migration
             SQL);
         }
 
-        Schema::table('bank_accounts', function (Blueprint $table) {
+        Schema::table('bank_accounts', function (Blueprint $table): void {
             $table->foreignUuid('chart_of_account_id')
                 ->nullable()
                 ->after('business_id')
@@ -76,7 +76,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('bank_accounts', function (Blueprint $table) {
+        Schema::table('bank_accounts', function (Blueprint $table): void {
             $table->dropConstrainedForeignId('chart_of_account_id');
         });
 

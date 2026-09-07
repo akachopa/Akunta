@@ -18,9 +18,7 @@ use Inertia\Response;
 
 class ChartOfAccountController extends Controller
 {
-    public function __construct(private readonly ChartOfAccountsService $service)
-    {
-    }
+    public function __construct(private readonly ChartOfAccountsService $service) {}
 
     public function index(Business $business): Response
     {

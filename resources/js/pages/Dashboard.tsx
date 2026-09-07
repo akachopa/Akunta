@@ -43,7 +43,9 @@ export default function Dashboard({ businesses }: { businesses: BusinessRow[] })
                                     <th className="py-2 font-medium">Jenis Usaha</th>
                                     <th className="py-2 font-medium">Role Anda</th>
                                     <th className="py-2 text-right font-medium">Akun COA</th>
-                                    <th className="py-2 text-right font-medium">Journal Diposting</th>
+                                    <th className="py-2 text-right font-medium">
+                                        Journal Diposting
+                                    </th>
                                     <th className="py-2 text-right font-medium">Periode Aktif</th>
                                 </tr>
                             </thead>
@@ -64,7 +66,9 @@ export default function Dashboard({ businesses }: { businesses: BusinessRow[] })
                                         <td className="py-2 text-slate-600">
                                             {business.role ?? '—'}
                                         </td>
-                                        <td className="py-2 text-right">{business.accounts_count}</td>
+                                        <td className="py-2 text-right">
+                                            {business.accounts_count}
+                                        </td>
                                         <td className="py-2 text-right">
                                             {business.posted_entries_count}
                                         </td>

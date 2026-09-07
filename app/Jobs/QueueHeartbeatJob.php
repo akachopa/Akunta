@@ -22,9 +22,7 @@ class QueueHeartbeatJob implements ShouldQueue
 
     public const CACHE_KEY = 'akunta:queue:last-heartbeat';
 
-    public function __construct(private readonly string $token)
-    {
-    }
+    public function __construct(private readonly string $token) {}
 
     public function handle(): void
     {

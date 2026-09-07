@@ -6,7 +6,6 @@ namespace Database\Seeders;
 
 use App\Domain\Accounting\Data\JournalEntryData;
 use App\Domain\Accounting\Data\JournalLineData;
-use App\Domain\Accounting\Enums\AccountRole;
 use App\Domain\Accounting\Models\ChartOfAccount;
 use App\Domain\Business\Enums\BusinessType;
 use App\Domain\Business\Models\Business;
@@ -40,7 +39,10 @@ class GoldenDatasetSeeder extends Seeder
      * Nilai ini dihitung manual dari daftar transaksi di bawah, bukan dari hasil query,
      * supaya perubahan pada accounting engine benar-benar terdeteksi.
      *
-     * @return array{debit: array<string, string>, credit: array<string, string>, total: string}
+     * Kode akun numerik menjadi integer key saat PHP membangun array, sehingga tipe
+     * key-nya array-key, bukan string.
+     *
+     * @return array{debit: array<array-key, string>, credit: array<array-key, string>, total: string}
      */
     public static function expectedTrialBalance(): array
     {

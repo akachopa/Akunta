@@ -18,9 +18,7 @@ use RuntimeException;
  */
 class MembershipService
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
-    {
-    }
+    public function __construct(private readonly AuditLogger $auditLogger) {}
 
     /**
      * Melekatkan user ke sebuah business dengan role tertentu.
@@ -77,7 +75,7 @@ class MembershipService
     {
         return DB::transaction(function () use ($membership, $roleSlug, $actor): BusinessUser {
             $role = Role::findBySlug($roleSlug);
-            $previous = $membership->role?->slug->value;
+            $previous = $membership->role->slug->value;
 
             $membership->update(['role_id' => $role->getKey()]);
 
@@ -119,7 +117,7 @@ class MembershipService
 
             $snapshot = [
                 'user_id' => $membership->user_id,
-                'role' => $membership->role?->slug->value,
+                'role' => $membership->role->slug->value,
             ];
             $business = $membership->business;
 

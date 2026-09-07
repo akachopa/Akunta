@@ -13,7 +13,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('roles', function (Blueprint $table) {
+        Schema::create('roles', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('slug', 64)->unique();
             $table->string('name');
@@ -22,7 +22,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('permissions', function (Blueprint $table) {
+        Schema::create('permissions', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('slug', 64)->unique();
             $table->string('group', 32)->index();
@@ -30,7 +30,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('permission_role', function (Blueprint $table) {
+        Schema::create('permission_role', function (Blueprint $table): void {
             $table->foreignUuid('role_id')->constrained('roles')->cascadeOnDelete();
             $table->foreignUuid('permission_id')->constrained('permissions')->cascadeOnDelete();
 

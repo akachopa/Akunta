@@ -21,7 +21,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('journal_entry_lines', function (Blueprint $table) {
+        Schema::create('journal_entry_lines', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('journal_entry_id')->constrained('journal_entries')->cascadeOnDelete();
             $table->foreignUuid('business_id')->constrained('businesses')->cascadeOnDelete();

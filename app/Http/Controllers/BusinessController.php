@@ -17,9 +17,7 @@ use Inertia\Response;
 
 class BusinessController extends Controller
 {
-    public function __construct(private readonly BusinessProvisioningService $provisioning)
-    {
-    }
+    public function __construct(private readonly BusinessProvisioningService $provisioning) {}
 
     public function index(Request $request): Response
     {

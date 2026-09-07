@@ -31,7 +31,7 @@ class JournalEntryNumberGenerator
         $latest = JournalEntry::query()
             ->withoutGlobalScopes()
             ->where('business_id', $business->getKey())
-            ->where('entry_number', 'like', $prefix.'%')
+            ->where('entry_number', 'like', $prefix . '%')
             ->orderByDesc('entry_number')
             ->value('entry_number');
 
@@ -39,7 +39,7 @@ class JournalEntryNumberGenerator
             ? 1
             : ((int) substr((string) $latest, strlen($prefix))) + 1;
 
-        return $prefix.str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return $prefix . str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
     }
 
     private function acquireLock(Business $business, string $prefix): void
@@ -52,7 +52,7 @@ class JournalEntryNumberGenerator
 
         $connection->statement(
             'SELECT pg_advisory_xact_lock(hashtext(?))',
-            [$business->getKey().'|'.$prefix]
+            [$business->getKey() . '|' . $prefix]
         );
     }
 }

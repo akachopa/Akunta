@@ -27,6 +27,12 @@ use Illuminate\Support\Carbon;
  * @property Carbon $start_date
  * @property Carbon $end_date
  * @property AccountingPeriodStatus $status
+ * @property Carbon|null $closed_at
+ * @property string|null $closed_by
+ * @property Carbon|null $reopened_at
+ * @property string|null $reopened_by
+ * @property string|null $reopen_reason
+ * @property-read int $journal_entries_count
  */
 class AccountingPeriod extends Model implements KeepsAuditSnapshot
 {

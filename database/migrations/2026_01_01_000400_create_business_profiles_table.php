@@ -16,7 +16,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('business_profiles', function (Blueprint $table) {
+        Schema::create('business_profiles', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->unique()->constrained('businesses')->cascadeOnDelete();
             $table->string('tax_id', 32)->nullable();

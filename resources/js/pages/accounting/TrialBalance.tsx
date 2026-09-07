@@ -67,10 +67,14 @@ export default function TrialBalance({ business, report, periods, selectedPeriod
                                         {formatMoney(row.movement_credit)}
                                     </td>
                                     <td className="py-2 text-right tabular-nums">
-                                        {Number(row.debit_balance) === 0 ? '' : formatMoney(row.debit_balance)}
+                                        {Number(row.debit_balance) === 0
+                                            ? ''
+                                            : formatMoney(row.debit_balance)}
                                     </td>
                                     <td className="py-2 text-right tabular-nums">
-                                        {Number(row.credit_balance) === 0 ? '' : formatMoney(row.credit_balance)}
+                                        {Number(row.credit_balance) === 0
+                                            ? ''
+                                            : formatMoney(row.credit_balance)}
                                     </td>
                                 </tr>
                             ))}
@@ -80,8 +84,12 @@ export default function TrialBalance({ business, report, periods, selectedPeriod
                                 <td className="py-2" colSpan={4}>
                                     Total
                                 </td>
-                                <td className="py-2 text-right tabular-nums">{formatMoney(report.total_debit)}</td>
-                                <td className="py-2 text-right tabular-nums">{formatMoney(report.total_credit)}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                    {formatMoney(report.total_debit)}
+                                </td>
+                                <td className="py-2 text-right tabular-nums">
+                                    {formatMoney(report.total_credit)}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>

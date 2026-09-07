@@ -27,8 +27,7 @@ class ChartOfAccountsService
     public function __construct(
         private readonly AuditLogger $auditLogger,
         private readonly TenantContext $tenantContext,
-    ) {
-    }
+    ) {}
 
     /**
      * Men-generate starter COA bisnis dari sebuah template (plan.md §5.1).
@@ -127,7 +126,7 @@ class ChartOfAccountsService
         return DB::transaction(function () use ($business, $attributes, $actor): ChartOfAccount {
             return $this->tenantContext->withBusiness($business, function () use ($business, $attributes, $actor): ChartOfAccount {
                 $accountType = AccountType::from((string) $attributes['account_type']);
-                $role = isset($attributes['account_role']) && $attributes['account_role'] !== null
+                $role = isset($attributes['account_role'])
                     ? AccountRole::from((string) $attributes['account_role'])
                     : null;
 
@@ -194,7 +193,7 @@ class ChartOfAccountsService
 
             if (isset($payload['account_type'])) {
                 $type = AccountType::from((string) $payload['account_type']);
-                $role = isset($payload['account_role']) && $payload['account_role'] !== null
+                $role = isset($payload['account_role'])
                     ? AccountRole::from((string) $payload['account_role'])
                     : $account->account_role;
 

@@ -16,9 +16,7 @@ use Illuminate\Http\Request;
  */
 class BusinessController extends Controller
 {
-    public function __construct(private readonly BusinessProvisioningService $provisioning)
-    {
-    }
+    public function __construct(private readonly BusinessProvisioningService $provisioning) {}
 
     public function index(Request $request): JsonResponse
     {

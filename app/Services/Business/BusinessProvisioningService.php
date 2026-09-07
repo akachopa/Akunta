@@ -39,8 +39,7 @@ class BusinessProvisioningService
         private readonly MembershipService $memberships,
         private readonly AuditLogger $auditLogger,
         private readonly TenantContext $tenantContext,
-    ) {
-    }
+    ) {}
 
     /**
      * Organization default untuk seorang user, dibuat saat dibutuhkan.
@@ -221,7 +220,7 @@ class BusinessProvisioningService
         $suffix = 1;
 
         while (Organization::query()->withTrashed()->where('slug', $slug)->exists()) {
-            $slug = $base.'-'.(++$suffix);
+            $slug = $base . '-' . (++$suffix);
         }
 
         return $slug;
@@ -239,7 +238,7 @@ class BusinessProvisioningService
             ->where('slug', $slug)
             ->exists()
         ) {
-            $slug = $base.'-'.(++$suffix);
+            $slug = $base . '-' . (++$suffix);
         }
 
         return $slug;

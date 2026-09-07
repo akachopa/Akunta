@@ -170,7 +170,7 @@ it('mempertahankan trial balance setelah satu entry dibalik', function (): void 
         ->where('description', 'Penjualan tunai #1')
         ->sole();
 
-    app(\App\Services\Accounting\JournalPostingService::class)
+    app(App\Services\Accounting\JournalPostingService::class)
         ->reverse($entry, $this->owner, 'Uji dampak reversal pada golden dataset');
 
     $after = app(TrialBalanceService::class)->asOf($this->business, Carbon::parse('2026-01-31'));

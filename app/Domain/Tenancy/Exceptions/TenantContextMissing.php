@@ -12,7 +12,7 @@ final class TenantContextMissing extends RuntimeException
     {
         parent::__construct(
             'Tidak ada business aktif pada tenant context. '
-            .'Operasi bertenant harus dijalankan di dalam TenantContext::withBusiness().'
+            . 'Operasi bertenant harus dijalankan di dalam TenantContext::withBusiness().'
         );
     }
 }

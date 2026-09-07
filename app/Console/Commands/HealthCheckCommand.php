@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -32,13 +33,13 @@ class HealthCheckCommand extends Command
                 return DB::connection()->getDriverName();
             }),
             'cache' => $this->check(function (): string {
-                $key = 'akunta:health:'.Str::random(8);
+                $key = 'akunta:health:' . Str::random(8);
                 Cache::put($key, 'ok', 10);
                 $value = Cache::get($key);
                 Cache::forget($key);
 
                 if ($value !== 'ok') {
-                    throw new \RuntimeException('Cache store tidak mengembalikan nilai yang ditulis.');
+                    throw new RuntimeException('Cache store tidak mengembalikan nilai yang ditulis.');
                 }
 
                 return (string) config('cache.default');
@@ -53,7 +54,7 @@ class HealthCheckCommand extends Command
                 $health = $aiWorker->health();
 
                 if (! $health['reachable']) {
-                    throw new \RuntimeException((string) $health['error']);
+                    throw new RuntimeException((string) $health['error']);
                 }
 
                 return (string) $health['status'];
@@ -65,7 +66,7 @@ class HealthCheckCommand extends Command
                 $token = Str::uuid()->toString();
                 QueueHeartbeatJob::dispatch($token);
 
-                return 'job dikirim ke queue '.(string) config('queue.default');
+                return 'job dikirim ke queue ' . (string) config('queue.default');
             });
         }
 

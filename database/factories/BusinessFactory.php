@@ -34,7 +34,7 @@ class BusinessFactory extends Factory
         return [
             'organization_id' => Organization::factory(),
             'name' => $name,
-            'slug' => Str::slug($name).'-'.Str::lower(Str::random(5)),
+            'slug' => Str::slug($name) . '-' . Str::lower(Str::random(5)),
             'legal_name' => $name,
             'business_type' => BusinessType::Retail->value,
             'currency' => 'IDR',

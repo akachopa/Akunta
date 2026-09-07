@@ -19,7 +19,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('businesses', function (Blueprint $table) {
+        Schema::create('businesses', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('organization_id')->constrained('organizations')->cascadeOnDelete();
             $table->string('name');
@@ -40,7 +40,7 @@ return new class extends Migration
             $table->index(['organization_id', 'is_active']);
         });
 
-        Schema::create('business_users', function (Blueprint $table) {
+        Schema::create('business_users', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('business_id')->constrained('businesses')->cascadeOnDelete();
             $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();

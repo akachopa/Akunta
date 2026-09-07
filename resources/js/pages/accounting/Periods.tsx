@@ -58,7 +58,9 @@ export default function Periods({ business, periods }: Props) {
                                 <td className="py-2 text-right tabular-nums text-slate-600">
                                     {period.journal_entries_count}
                                 </td>
-                                <td className="py-2 text-slate-600">{formatDate(period.closed_at)}</td>
+                                <td className="py-2 text-slate-600">
+                                    {formatDate(period.closed_at)}
+                                </td>
                                 <td className="py-2 text-right">
                                     {period.status === 'closed' ? (
                                         <button
@@ -105,7 +107,9 @@ export default function Periods({ business, periods }: Props) {
                         }}
                     >
                         <label className="grow text-sm">
-                            <span className="block text-slate-600">Alasan membuka kembali periode</span>
+                            <span className="block text-slate-600">
+                                Alasan membuka kembali periode
+                            </span>
                             <input
                                 type="text"
                                 value={reason}

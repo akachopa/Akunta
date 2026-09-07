@@ -24,9 +24,7 @@ use RuntimeException;
  */
 class AccountingPeriodService
 {
-    public function __construct(private readonly AuditLogger $auditLogger)
-    {
-    }
+    public function __construct(private readonly AuditLogger $auditLogger) {}
 
     /**
      * Membuat periode bulanan untuk satu fiscal year.

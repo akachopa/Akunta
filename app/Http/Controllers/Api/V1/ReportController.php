@@ -18,9 +18,7 @@ use Illuminate\Support\Carbon;
  */
 class ReportController extends Controller
 {
-    public function __construct(private readonly TrialBalanceService $trialBalance)
-    {
-    }
+    public function __construct(private readonly TrialBalanceService $trialBalance) {}
 
     public function trialBalance(Request $request, Business $business): JsonResponse
     {

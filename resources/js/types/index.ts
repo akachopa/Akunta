@@ -43,19 +43,10 @@ export type AccountType =
     | 'other_income'
     | 'other_expense';
 
-export type JournalEntryStatus =
-    | 'draft'
-    | 'pending_approval'
-    | 'approved'
-    | 'posted'
-    | 'reversed';
+export type JournalEntryStatus = 'draft' | 'pending_approval' | 'approved' | 'posted' | 'reversed';
 
 export type AccountingPeriodStatus =
-    | 'open'
-    | 'reviewing'
-    | 'ready_to_close'
-    | 'closed'
-    | 'reopened';
+    'open' | 'reviewing' | 'ready_to_close' | 'closed' | 'reopened';
 
 export interface TrialBalanceRow {
     account_id: string;

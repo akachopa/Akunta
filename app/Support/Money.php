@@ -17,9 +17,7 @@ final class Money
 {
     public const SCALE = 2;
 
-    private function __construct()
-    {
-    }
+    private function __construct() {}
 
     public static function zero(): string
     {

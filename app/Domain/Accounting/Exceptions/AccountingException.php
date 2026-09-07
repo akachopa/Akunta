@@ -12,6 +12,4 @@ use RuntimeException;
  * Semua pelanggaran aturan akuntansi diangkat sebagai turunan kelas ini agar HTTP layer
  * dapat memetakannya menjadi 422 tanpa mengenali setiap kasus satu per satu.
  */
-abstract class AccountingException extends RuntimeException
-{
-}
+abstract class AccountingException extends RuntimeException {}

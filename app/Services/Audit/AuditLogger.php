@@ -8,6 +8,8 @@ use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Audit\Models\AuditLog;
 use App\Domain\Business\Models\Business;
 use App\Models\User;
+use BackedEnum;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -20,9 +22,7 @@ use Illuminate\Support\Facades\Auth;
  */
 class AuditLogger
 {
-    public function __construct(private readonly ?Request $request = null)
-    {
-    }
+    public function __construct(private readonly ?Request $request = null) {}
 
     /**
      * @param  array<string, mixed>|null  $before
@@ -127,8 +127,8 @@ class AuditLogger
     private function stringify(mixed $value): mixed
     {
         return match (true) {
-            $value instanceof \BackedEnum => $value->value,
-            $value instanceof \DateTimeInterface => $value->format(DATE_ATOM),
+            $value instanceof BackedEnum => $value->value,
+            $value instanceof DateTimeInterface => $value->format(DATE_ATOM),
             is_scalar($value), $value === null, is_array($value) => $value,
             default => (string) $value,
         };

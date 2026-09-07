@@ -36,7 +36,7 @@ final class StarterCoaDefinition
             ));
         }
 
-        return array_values(array_map(
+        return array_map(
             static function (array $account, int $index): array {
                 $account['sort_order'] = ($index + 1) * 10;
 
@@ -44,7 +44,7 @@ final class StarterCoaDefinition
             },
             $accounts,
             array_keys($accounts)
-        ));
+        );
     }
 
     /**

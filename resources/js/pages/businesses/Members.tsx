@@ -50,7 +50,9 @@ export default function BusinessMembers({ business, members, assignableRoles }: 
                         <tbody>
                             {members.map((member) => (
                                 <tr key={member.id} className="border-b border-slate-100">
-                                    <td className="py-2 font-medium text-slate-900">{member.name}</td>
+                                    <td className="py-2 font-medium text-slate-900">
+                                        {member.name}
+                                    </td>
                                     <td className="py-2 text-slate-600">{member.email}</td>
                                     <td className="py-2">
                                         <select
@@ -71,8 +73,12 @@ export default function BusinessMembers({ business, members, assignableRoles }: 
                                             ))}
                                         </select>
                                     </td>
-                                    <td className="py-2 text-slate-600">{member.is_external ? 'Ya' : '—'}</td>
-                                    <td className="py-2 text-slate-600">{formatDate(member.joined_at)}</td>
+                                    <td className="py-2 text-slate-600">
+                                        {member.is_external ? 'Ya' : '—'}
+                                    </td>
+                                    <td className="py-2 text-slate-600">
+                                        {formatDate(member.joined_at)}
+                                    </td>
                                     <td className="py-2 text-right">
                                         <button
                                             type="button"
@@ -117,7 +123,9 @@ export default function BusinessMembers({ business, members, assignableRoles }: 
                                 required
                             />
                             {form.errors.email && (
-                                <span className="mt-1 block text-xs text-rose-600">{form.errors.email}</span>
+                                <span className="mt-1 block text-xs text-rose-600">
+                                    {form.errors.email}
+                                </span>
                             )}
                         </label>
 
@@ -140,7 +148,9 @@ export default function BusinessMembers({ business, members, assignableRoles }: 
                             <input
                                 type="checkbox"
                                 checked={form.data.is_external}
-                                onChange={(event) => form.setData('is_external', event.target.checked)}
+                                onChange={(event) =>
+                                    form.setData('is_external', event.target.checked)
+                                }
                             />
                             Akuntan eksternal
                         </label>

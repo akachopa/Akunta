@@ -18,9 +18,7 @@ use Inertia\Response;
 
 class BusinessMemberController extends Controller
 {
-    public function __construct(private readonly MembershipService $memberships)
-    {
-    }
+    public function __construct(private readonly MembershipService $memberships) {}
 
     public function index(Business $business): Response
     {

@@ -86,7 +86,7 @@ class JournalEntryLine extends Model
         });
 
         static::deleting(function (self $line): void {
-            if ($line->journalEntry?->status->isImmutable()) {
+            if ($line->journalEntry->status->isImmutable()) {
                 throw ImmutablePostedJournal::forLineMutation($line);
             }
         });

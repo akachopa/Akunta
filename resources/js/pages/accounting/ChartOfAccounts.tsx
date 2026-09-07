@@ -83,10 +83,14 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                                     className={`border-b border-slate-100 ${account.is_active ? '' : 'text-slate-400'}`}
                                 >
                                     <td className="py-2 font-mono tabular-nums">{account.code}</td>
-                                    <td className={`py-2 ${account.is_postable ? '' : 'font-semibold'}`}>
+                                    <td
+                                        className={`py-2 ${account.is_postable ? '' : 'font-semibold'}`}
+                                    >
                                         {account.name}
                                     </td>
-                                    <td className="py-2 text-slate-600">{account.account_type_label}</td>
+                                    <td className="py-2 text-slate-600">
+                                        {account.account_type_label}
+                                    </td>
                                     <td className="py-2 text-slate-600">
                                         {account.normal_balance === 'debit' ? 'Debit' : 'Kredit'}
                                     </td>
@@ -143,7 +147,9 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                                 required
                             />
                             {form.errors.code && (
-                                <span className="mt-1 block text-xs text-rose-600">{form.errors.code}</span>
+                                <span className="mt-1 block text-xs text-rose-600">
+                                    {form.errors.code}
+                                </span>
                             )}
                         </label>
 
@@ -162,7 +168,9 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                             <span className="block text-slate-600">Tipe Akun</span>
                             <select
                                 value={form.data.account_type}
-                                onChange={(event) => form.setData('account_type', event.target.value)}
+                                onChange={(event) =>
+                                    form.setData('account_type', event.target.value)
+                                }
                                 className="mt-1 rounded-md border border-slate-300 px-3 py-2"
                             >
                                 {accountTypes.map((type) => (
@@ -177,7 +185,9 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                             <span className="block text-slate-600">System Role</span>
                             <select
                                 value={form.data.account_role}
-                                onChange={(event) => form.setData('account_role', event.target.value)}
+                                onChange={(event) =>
+                                    form.setData('account_role', event.target.value)
+                                }
                                 className="mt-1 rounded-md border border-slate-300 px-3 py-2"
                             >
                                 <option value="">Tanpa role</option>
@@ -188,7 +198,9 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                                 ))}
                             </select>
                             {form.errors.account_role && (
-                                <span className="mt-1 block text-xs text-rose-600">{form.errors.account_role}</span>
+                                <span className="mt-1 block text-xs text-rose-600">
+                                    {form.errors.account_role}
+                                </span>
                             )}
                         </label>
 
@@ -196,7 +208,9 @@ export default function ChartOfAccounts({ business, accounts, accountTypes, acco
                             <input
                                 type="checkbox"
                                 checked={form.data.is_postable}
-                                onChange={(event) => form.setData('is_postable', event.target.checked)}
+                                onChange={(event) =>
+                                    form.setData('is_postable', event.target.checked)
+                                }
                             />
                             Dapat diposting
                         </label>

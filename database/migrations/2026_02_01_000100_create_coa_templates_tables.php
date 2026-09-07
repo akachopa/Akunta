@@ -16,7 +16,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('coa_templates', function (Blueprint $table) {
+        Schema::create('coa_templates', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->string('code', 64)->unique();
             $table->string('name');
@@ -27,7 +27,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('coa_template_accounts', function (Blueprint $table) {
+        Schema::create('coa_template_accounts', function (Blueprint $table): void {
             $table->uuid('id')->primary();
             $table->foreignUuid('coa_template_id')->constrained('coa_templates')->cascadeOnDelete();
             $table->string('code', 32);

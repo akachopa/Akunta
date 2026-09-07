@@ -21,8 +21,7 @@ class AiWorkerClient
         private readonly string $baseUrl,
         private readonly ?string $token,
         private readonly int $timeout,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{reachable: bool, status: string, detail: array<string, mixed>|null, error: string|null}
@@ -45,7 +44,7 @@ class AiWorkerClient
                 'reachable' => false,
                 'status' => 'error',
                 'detail' => null,
-                'error' => 'AI worker merespons dengan status HTTP '.$response->status().'.',
+                'error' => 'AI worker merespons dengan status HTTP ' . $response->status() . '.',
             ];
         }
 

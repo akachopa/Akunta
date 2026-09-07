@@ -61,7 +61,9 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                     <dl className="grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
                         <div>
                             <dt className="text-slate-500">Tanggal</dt>
-                            <dd className="font-medium text-slate-900">{formatDate(entry.entry_date)}</dd>
+                            <dd className="font-medium text-slate-900">
+                                {formatDate(entry.entry_date)}
+                            </dd>
                         </div>
                         <div>
                             <dt className="text-slate-500">Periode</dt>
@@ -98,9 +100,12 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                                 <tr key={line.id} className="border-b border-slate-100">
                                     <td className="py-2 text-slate-500">{line.line_number}</td>
                                     <td className="py-2">
-                                        <span className="font-mono">{line.account_code}</span> — {line.account_name}
+                                        <span className="font-mono">{line.account_code}</span> —{' '}
+                                        {line.account_name}
                                     </td>
-                                    <td className="py-2 text-slate-600">{line.description ?? '—'}</td>
+                                    <td className="py-2 text-slate-600">
+                                        {line.description ?? '—'}
+                                    </td>
                                     <td className="py-2 text-right tabular-nums">
                                         {Number(line.debit) === 0 ? '' : formatMoney(line.debit)}
                                     </td>
@@ -115,8 +120,12 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                                 <td className="py-2" colSpan={3}>
                                     Total
                                 </td>
-                                <td className="py-2 text-right tabular-nums">{formatMoney(entry.total_debit)}</td>
-                                <td className="py-2 text-right tabular-nums">{formatMoney(entry.total_credit)}</td>
+                                <td className="py-2 text-right tabular-nums">
+                                    {formatMoney(entry.total_debit)}
+                                </td>
+                                <td className="py-2 text-right tabular-nums">
+                                    {formatMoney(entry.total_credit)}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>
@@ -149,7 +158,9 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                                     .
                                 </li>
                             )}
-                            {entry.reversal_reason && <li className="text-slate-600">Alasan: {entry.reversal_reason}</li>}
+                            {entry.reversal_reason && (
+                                <li className="text-slate-600">Alasan: {entry.reversal_reason}</li>
+                            )}
                         </ul>
                     </Card>
                 )}
@@ -162,7 +173,9 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                         {(entry.status === 'draft' || entry.status === 'pending_approval') && (
                             <button
                                 type="button"
-                                onClick={() => approve.post(`${base}/approve`, { preserveScroll: true })}
+                                onClick={() =>
+                                    approve.post(`${base}/approve`, { preserveScroll: true })
+                                }
                                 className="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-100"
                             >
                                 Setujui
@@ -203,12 +216,16 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                                 <input
                                     type="text"
                                     value={reverse.data.reason}
-                                    onChange={(event) => reverse.setData('reason', event.target.value)}
+                                    onChange={(event) =>
+                                        reverse.setData('reason', event.target.value)
+                                    }
                                     className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2"
                                     required
                                 />
                                 {reverse.errors.reason && (
-                                    <span className="mt-1 block text-xs text-rose-600">{reverse.errors.reason}</span>
+                                    <span className="mt-1 block text-xs text-rose-600">
+                                        {reverse.errors.reason}
+                                    </span>
                                 )}
                             </label>
 
@@ -217,7 +234,9 @@ export default function JournalEntryDetail({ business, entry }: Props) {
                                 <input
                                     type="date"
                                     value={reverse.data.reversal_date}
-                                    onChange={(event) => reverse.setData('reversal_date', event.target.value)}
+                                    onChange={(event) =>
+                                        reverse.setData('reversal_date', event.target.value)
+                                    }
                                     className="mt-1 rounded-md border border-slate-300 px-3 py-2"
                                 />
                             </label>

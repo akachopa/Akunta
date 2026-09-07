@@ -20,11 +20,11 @@ class CoaTemplateSeeder extends Seeder
         DB::transaction(function (): void {
             foreach (BusinessType::cases() as $businessType) {
                 $template = CoaTemplate::query()->updateOrCreate(
-                    ['code' => 'starter-'.$businessType->value],
+                    ['code' => 'starter-' . $businessType->value],
                     [
-                        'name' => 'Starter COA — '.$businessType->label(),
+                        'name' => 'Starter COA — ' . $businessType->label(),
                         'business_type' => $businessType->value,
-                        'description' => 'Chart of accounts starter untuk '.$businessType->label().'.',
+                        'description' => 'Chart of accounts starter untuk ' . $businessType->label() . '.',
                         'is_system' => true,
                         'is_active' => true,
                     ]

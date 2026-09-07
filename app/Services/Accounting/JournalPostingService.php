@@ -39,8 +39,7 @@ class JournalPostingService
         private readonly JournalEntryNumberGenerator $numberGenerator,
         private readonly AuditLogger $auditLogger,
         private readonly TenantContext $tenantContext,
-    ) {
-    }
+    ) {}
 
     /**
      * Membuat journal entry berstatus draft.
