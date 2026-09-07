@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Presenters;
 
+use App\Domain\Documents\Enums\DocumentProcessingStage;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Documents\Models\DocumentPage;
 use App\Domain\Documents\Models\DocumentProcessingJob;
@@ -60,8 +61,17 @@ class DocumentPresenter
             'uploaded_by' => $document->uploader?->name,
             'archived_by' => $document->archiver?->name,
             'pages' => $document->pages->map(fn (DocumentPage $page): array => $this->page($page))->all(),
+
+            /*
+             * Timeline diurutkan mengikuti urutan pipeline plan.md §13.1, bukan waktu
+             * pembuatan baris: tahap yang belum dibangun dibuat dalam transaksi yang sama
+             * sehingga timestamp-nya tidak dapat membedakan urutan.
+             */
             'processing_jobs' => $document->processingJobs
-                ->sortBy(['created_at', 'attempt'])
+                ->sortBy([
+                    fn (DocumentProcessingJob $job): int => $this->stagePosition($job),
+                    fn (DocumentProcessingJob $job): int => $job->attempt,
+                ])
                 ->values()
                 ->map(fn (DocumentProcessingJob $job): array => $this->job($job))
                 ->all(),
@@ -109,5 +119,12 @@ class DocumentPresenter
             'error_message' => $job->error_message,
             'result' => $job->result,
         ];
+    }
+
+    private function stagePosition(DocumentProcessingJob $job): int
+    {
+        $position = array_search($job->stage, DocumentProcessingStage::cases(), true);
+
+        return $position === false ? PHP_INT_MAX : $position;
     }
 }

@@ -11,6 +11,7 @@ use App\Domain\Audit\Concerns\RecordsAuditTrail;
 use App\Domain\Audit\Contracts\KeepsAuditSnapshot;
 use App\Domain\Business\Enums\AccountingBasis;
 use App\Domain\Business\Enums\BusinessType;
+use App\Domain\Documents\Models\Document;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -131,6 +132,14 @@ class Business extends Model implements KeepsAuditSnapshot
     public function journalEntries(): HasMany
     {
         return $this->hasMany(JournalEntry::class);
+    }
+
+    /**
+     * @return HasMany<Document, $this>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
     }
 
     /*

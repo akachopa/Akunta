@@ -46,6 +46,13 @@ class DocumentProcessingService
      */
     public function queue(Document $document): DocumentProcessingJob
     {
+        /*
+         * Transisi state machine harus dinilai terhadap baris di database, bukan terhadap
+         * salinan model di memori yang bisa saja tertinggal. Status dokumen berubah di
+         * queue worker, sehingga instance yang dipegang pemanggil mungkin sudah usang.
+         */
+        $document->refresh();
+
         $job = DB::transaction(function () use ($document): DocumentProcessingJob {
             /*
              * Dokumen yang diproses ulang dari arsip otomatis keluar dari arsip: status
