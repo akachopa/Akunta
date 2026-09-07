@@ -429,16 +429,15 @@ it('menolak staff melihat laporan', function (): void {
 
 it('belum menyediakan endpoint phase berikutnya', function (): void {
     /*
-     * Penanda eksplisit bahwa endpoint plan.md §29.3–§29.5, §29.8, dan §29.10 memang
-     * belum dibangun, bukan terlewat: dokumen, transaksi, review queue, rekonsiliasi,
-     * dan AI analyst adalah Phase 3 ke atas.
+     * Penanda eksplisit bahwa endpoint plan.md §29.4–§29.5, §29.8, dan §29.10 memang
+     * belum dibangun, bukan terlewat: transaksi, review queue, rekonsiliasi, dan AI
+     * analyst adalah Phase 4 ke atas. Endpoint dokumen (§29.3) sudah ada sejak Phase 3.
      */
     Sanctum::actingAs($this->accountant);
 
     $businessId = $this->business->getKey();
 
     foreach ([
-        "/api/v1/businesses/{$businessId}/documents",
         "/api/v1/businesses/{$businessId}/transactions",
         "/api/v1/businesses/{$businessId}/review-queue",
         "/api/v1/businesses/{$businessId}/reconciliation",

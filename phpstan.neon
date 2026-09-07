@@ -25,7 +25,9 @@ parameters:
         # Trait helper hanya di-use lewat Pest.php, bukan lewat class test.
         -
             identifier: trait.unused
-            path: tests/Support/ProvisionsBusinesses.php
+            paths:
+                - tests/Support/ProvisionsBusinesses.php
+                - tests/Support/UploadsDocuments.php
 
 # tests/Feature tidak dianalisis: Pest mem-bind $this di dalam closure ke instance
 # TestCase saat runtime, sehingga helper trait dan state yang ditulis pada beforeEach
