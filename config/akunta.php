@@ -37,13 +37,15 @@ return [
     | Confidence Engine
     |--------------------------------------------------------------------------
     |
-    | plan.md §15.2. Threshold ini belum digunakan sampai Phase 4; disimpan di sini
-    | agar tidak tersebar sebagai magic number nanti.
+    | plan.md §15.2. Nilainya string, bukan float: perbandingan terhadap ambang
+    | dilakukan pada desimal keempat dengan bcmath, dan pembulatan float dapat
+    | memindahkan sebuah nilai melintasi ambang. Bisnis dapat menimpa keduanya lewat
+    | business_profiles, sesuai §15.2 "configurable per business".
     |
     */
     'confidence' => [
-        'auto_ready' => (float) env('ACCOUNTING_AUTO_READY_THRESHOLD', 0.95),
-        'review_recommended' => (float) env('ACCOUNTING_REVIEW_THRESHOLD', 0.80),
+        'auto_ready' => (string) env('ACCOUNTING_AUTO_READY_THRESHOLD', '0.95'),
+        'review_recommended' => (string) env('ACCOUNTING_REVIEW_THRESHOLD', '0.80'),
     ],
 
     /*

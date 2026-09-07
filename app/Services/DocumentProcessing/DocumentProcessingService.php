@@ -7,7 +7,6 @@ namespace App\Services\DocumentProcessing;
 use App\Domain\Documents\Enums\DocumentPageKind;
 use App\Domain\Documents\Enums\DocumentProcessingStage;
 use App\Domain\Documents\Enums\DocumentStatus;
-use App\Domain\Documents\Enums\ProcessingJobStatus;
 use App\Domain\Documents\Exceptions\DocumentParsingFailed;
 use App\Domain\Documents\Exceptions\UnsupportedDocumentFile;
 use App\Domain\Documents\Models\Document;
@@ -22,12 +21,13 @@ use Illuminate\Support\Facades\DB;
 use Throwable;
 
 /**
- * Menjalankan pipeline dokumen (plan.md §13.1, §25.1).
+ * Menjalankan tahap parse dan mengatur masuk-keluarnya dokumen dari pipeline
+ * (plan.md §13.1, §25.1).
  *
- * Phase 3 hanya mengimplementasikan tahap `parse`. Setelah parse berhasil dokumen
- * berhenti di CLASSIFYING, dan tahap-tahap Phase 4 ke atas dicatat sebagai job `pending`
- * supaya timeline pipeline menampilkan apa yang masih ditunggu. Menandai dokumen READY di
- * titik ini akan menyesatkan, karena dokumen belum menghasilkan transaksi apa pun.
+ * Tahap klasifikasi dan ekstraksi berada di service-nya sendiri; yang tetap di sini adalah
+ * parse beserta pekerjaan yang berlaku untuk seluruh pipeline: memasukkan dokumen ke
+ * antrean, memproses ulang, mengarsipkan, dan menutup kegagalan setelah percobaan queue
+ * habis.
  *
  * plan.md §40 mewajibkan job yang idempotent dan retry-safe: `process()` menolak
  * mengerjakan dokumen yang statusnya tidak menunggu proses, sehingga job yang terkirim
@@ -39,6 +39,7 @@ class DocumentProcessingService
         private readonly DocumentStorage $storage,
         private readonly AiWorkerClient $worker,
         private readonly AuditLogger $audit,
+        private readonly DocumentStageRecorder $stages,
     ) {}
 
     /**
@@ -65,7 +66,7 @@ class DocumentProcessingService
                 'archived_by' => null,
             ]);
 
-            return $this->openStageJob($document, DocumentProcessingStage::Parse);
+            return $this->stages->open($document, DocumentProcessingStage::Parse);
         });
 
         ProcessDocumentJob::dispatch($document->getKey(), $document->business_id);
@@ -137,8 +138,7 @@ class DocumentProcessingService
             return false;
         }
 
-        $job = $this->currentStageJob($document, DocumentProcessingStage::Parse)
-            ?? $this->openStageJob($document, DocumentProcessingStage::Parse);
+        $job = $this->stages->currentOrOpen($document, DocumentProcessingStage::Parse);
 
         $document->transitionTo(DocumentStatus::Parsing);
         $job->markRunning();
@@ -176,7 +176,7 @@ class DocumentProcessingService
 
             $job->markSucceeded($result->toJobResult());
 
-            $this->recordPendingStages($document);
+            $this->stages->recordPendingStages($document);
         });
 
         return true;
@@ -184,10 +184,17 @@ class DocumentProcessingService
 
     /**
      * Mencatat kegagalan permanen setelah seluruh percobaan queue habis.
+     *
+     * Tahap yang sedang berjalan diturunkan dari status dokumen, bukan diterima sebagai
+     * argumen, karena callback `failed()` sebuah queue job tidak selalu mengetahui tahap
+     * mana yang gagal — job klasifikasi dapat gagal setelah dokumen berpindah ke tahap
+     * berikutnya pada percobaan sebelumnya.
      */
     public function markPermanentFailure(Document $document, Throwable $exception): void
     {
-        $job = $this->currentStageJob($document, DocumentProcessingStage::Parse);
+        $stage = $this->stages->stageFor($document->processing_status);
+
+        $job = $stage === null ? null : $this->stages->current($document, $stage);
 
         if ($job !== null && ! $job->status->isFinished()) {
             $job->markFailed($exception);
@@ -283,69 +290,6 @@ class DocumentProcessingService
                 'failure_reason' => $exception->getMessage(),
             ]);
         });
-    }
-
-    /**
-     * Membuka baris job baru untuk satu tahap.
-     *
-     * Percobaan sebelumnya tidak ditimpa karena plan.md §32.1 memerlukan riwayat durasi
-     * dan kegagalan, dan user perlu melihat penyebab kegagalan sebelumnya.
-     */
-    private function openStageJob(Document $document, DocumentProcessingStage $stage): DocumentProcessingJob
-    {
-        $attempt = (int) DocumentProcessingJob::query()
-            ->where('document_id', $document->getKey())
-            ->forStage($stage)
-            ->max('attempt');
-
-        /** @var DocumentProcessingJob $job */
-        $job = $document->processingJobs()->create([
-            'business_id' => $document->business_id,
-            'stage' => $stage,
-            'status' => ProcessingJobStatus::Queued,
-            'attempt' => $attempt + 1,
-            'queued_at' => Carbon::now(),
-        ]);
-
-        return $job;
-    }
-
-    private function currentStageJob(Document $document, DocumentProcessingStage $stage): ?DocumentProcessingJob
-    {
-        return DocumentProcessingJob::query()
-            ->where('document_id', $document->getKey())
-            ->forStage($stage)
-            ->orderByDesc('attempt')
-            ->first();
-    }
-
-    /**
-     * Mencatat tahap yang phase-nya belum dibangun sebagai `pending`.
-     *
-     * Baris ini membuat batas Phase 3 terlihat di UI: user melihat dokumennya sudah
-     * terbaca dan sedang menunggu klasifikasi, bukan mengira prosesnya menggantung.
-     */
-    private function recordPendingStages(Document $document): void
-    {
-        foreach (DocumentProcessingStage::cases() as $stage) {
-            if ($stage->isImplemented()) {
-                continue;
-            }
-
-            $existing = $this->currentStageJob($document, $stage);
-
-            if ($existing !== null) {
-                continue;
-            }
-
-            $document->processingJobs()->create([
-                'business_id' => $document->business_id,
-                'stage' => $stage,
-                'status' => ProcessingJobStatus::Pending,
-                'attempt' => 1,
-                'error_message' => sprintf('Tahap %s dibangun pada Phase %d.', $stage->label(), $stage->phase()),
-            ]);
-        }
     }
 
     private function failureReason(Throwable $exception): string

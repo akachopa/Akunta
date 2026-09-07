@@ -8,6 +8,7 @@ use App\Domain\Documents\Enums\ProcessingJobStatus;
 use App\Domain\Documents\Exceptions\DocumentParsingFailed;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Tenancy\TenantContext;
+use App\Jobs\ClassifyDocumentJob;
 use App\Jobs\ProcessDocumentJob;
 use App\Services\DocumentProcessing\DocumentProcessingService;
 use Illuminate\Support\Facades\Http;
@@ -58,7 +59,7 @@ it('memparse dokumen dan menyimpan halamannya', function (): void {
     expect($page->rows[1])->toBe(['2026-01-15', 'SETORAN TUNAI', '2000000']);
 });
 
-it('berhenti di classifying setelah parse karena classifier adalah phase 4', function (): void {
+it('menyerahkan dokumen ke tahap klasifikasi setelah parse', function (): void {
     [$owner, $business] = $this->provisionBusinessWithOwner();
     $document = $this->ingestDocument($business, $owner);
 
@@ -67,7 +68,7 @@ it('berhenti di classifying setelah parse karena classifier adalah phase 4', fun
 
     /*
      * Menandai dokumen READY di sini akan menyesatkan: dokumennya baru terbaca dan belum
-     * menghasilkan transaksi apa pun (plan.md §25.1, §37 Phase 4).
+     * satu pun datanya dibaca (plan.md §25.1).
      */
     expect($document->refresh()->processing_status)->toBe(DocumentStatus::Classifying);
 });
@@ -86,10 +87,33 @@ it('mencatat tahap phase berikutnya sebagai pending agar batas phase terlihat', 
     expect($jobs['parse']->result['parser_version'])->toBe('1.0');
     expect($jobs['parse']->duration_ms)->not->toBeNull();
 
-    foreach (['classify', 'extract', 'normalize', 'match'] as $stage) {
+    /*
+     * Classify dan extract tidak lagi muncul sebagai baris menunggu: keduanya sudah
+     * dibangun, dan job-nya dibuat ketika tahapnya benar-benar dijalankan.
+     */
+    expect($jobs->has('classify'))->toBeFalse();
+    expect($jobs->has('extract'))->toBeFalse();
+
+    foreach (['normalize', 'match'] as $stage) {
         expect($jobs[$stage]->status)->toBe(ProcessingJobStatus::Pending);
         expect($jobs[$stage]->error_message)->toContain('Phase');
     }
+});
+
+it('mengirim job klasifikasi setelah parse berhasil', function (): void {
+    [$owner, $business] = $this->provisionBusinessWithOwner();
+    $document = $this->ingestDocument($business, $owner);
+
+    $this->fakeParserSuccess();
+
+    // Rantai tahap berada di lapisan job, bukan di dalam service (plan.md §13.1).
+    app(TenantContext::class)->withBusiness(
+        $business,
+        fn () => (new ProcessDocumentJob($document->getKey(), $business->getKey()))
+            ->handle(app(TenantContext::class))
+    );
+
+    Queue::assertPushed(ClassifyDocumentJob::class);
 });
 
 it('mengirim berkas ke worker sebagai multipart tanpa membocorkan kredensial storage', function (): void {
@@ -317,7 +341,7 @@ it('menjalankan job dengan tenant context bisnis dokumennya', function (): void 
     app(TenantContext::class)->forget();
 
     (new ProcessDocumentJob($document->getKey(), $business->getKey()))
-        ->handle(app(TenantContext::class), app(DocumentProcessingService::class));
+        ->handle(app(TenantContext::class));
 
     expect($document->refresh()->processing_status)->toBe(DocumentStatus::Classifying);
 });

@@ -6,6 +6,7 @@ use App\Domain\Business\Enums\RoleSlug;
 use App\Domain\Documents\Enums\DocumentSourceType;
 use App\Domain\Documents\Enums\DocumentStatus;
 use App\Domain\Documents\Enums\DocumentType;
+use App\Domain\Documents\Enums\DocumentTypeSource;
 use App\Domain\Documents\Models\Document;
 use App\Jobs\ProcessDocumentJob;
 use Illuminate\Http\UploadedFile;
@@ -217,9 +218,10 @@ it('menerima jenis dokumen sebagai petunjuk opsional', function (): void {
 
     expect($document->document_type)->toBe(DocumentType::BankStatement);
 
-    // Asal nilai dicatat supaya classifier Phase 4 tahu ini pernyataan user, bukan
-    // tebakan model (plan.md §17.1).
-    expect($document->document_type_source)->toBe('user');
+    // Asal nilai dicatat supaya classifier tahu ini pernyataan user, bukan tebakan model,
+    // dan tidak menimpanya (plan.md §17.1).
+    expect($document->document_type_source)->toBe(DocumentTypeSource::User);
+    expect($document->hasHumanDocumentType())->toBeTrue();
 });
 
 it('membiarkan jenis dokumen kosong ketika user tidak menentukannya', function (): void {

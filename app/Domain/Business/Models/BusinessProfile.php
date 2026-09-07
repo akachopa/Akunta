@@ -13,8 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 /**
  * plan.md §23.2: business_profiles.
  *
+ * Dua kolom ambang confidence berada di sini, bukan di tabel businesses, karena keduanya
+ * pengaturan operasional yang tidak dibaca accounting core (plan.md §15.2).
+ *
  * @property string $id
  * @property string $business_id
+ * @property string|null $ai_auto_ready_threshold
+ * @property string|null $ai_review_threshold
  */
 class BusinessProfile extends Model implements KeepsAuditSnapshot
 {
@@ -32,5 +37,7 @@ class BusinessProfile extends Model implements KeepsAuditSnapshot
         'postal_code',
         'country',
         'industry_note',
+        'ai_auto_ready_threshold',
+        'ai_review_threshold',
     ];
 }

@@ -58,17 +58,38 @@ it('mengizinkan setiap status yang tidak sedang berjalan untuk diantre ulang', f
     expect(DocumentStatus::Queued->isRetryable())->toBeFalse();
 });
 
-it('tidak menganggap classifying sebagai proses berjalan selama phase 3', function (): void {
+it('menganggap berjalan hanya status yang tahapnya sudah dibangun', function (): void {
     /*
-     * Tidak ada worker yang akan memindahkan dokumen dari CLASSIFYING sampai Phase 4,
-     * sehingga polling tanpa akhir hanya membebani server.
+     * Sejak Phase 4, CLASSIFYING dan EXTRACTING benar-benar dikerjakan worker, sehingga
+     * polling atasnya akan berujung pada perubahan status.
      */
-    expect(DocumentStatus::Classifying->isProcessing())->toBeFalse();
-
     expect(DocumentStatus::Queued->isProcessing())->toBeTrue();
     expect(DocumentStatus::Parsing->isProcessing())->toBeTrue();
-    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing');
-    expect(DocumentStatus::processingValues())->not->toContain('classifying');
+    expect(DocumentStatus::Classifying->isProcessing())->toBeTrue();
+    expect(DocumentStatus::Extracting->isProcessing())->toBeTrue();
+
+    /*
+     * NORMALIZING dan MATCHING sebaliknya: tidak ada worker yang akan memindahkan dokumen
+     * dari sana sampai Phase 5 dan Phase 7, sehingga polling tanpa akhir hanya membebani
+     * server tanpa pernah menghasilkan perubahan.
+     */
+    expect(DocumentStatus::Normalizing->isProcessing())->toBeFalse();
+    expect(DocumentStatus::Matching->isProcessing())->toBeFalse();
+
+    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing', 'classifying', 'extracting');
+    expect(DocumentStatus::processingValues())->not->toContain('normalizing', 'matching');
+});
+
+it('mengizinkan koreksi reviewer membuka kembali tahap ekstraksi', function (): void {
+    /*
+     * plan.md §17.1: jenis dokumen yang dikoreksi manusia mengubah schema ekstraksinya,
+     * jadi dokumen harus dapat dibaca ulang tanpa mengulang parse dan klasifikasi.
+     */
+    expect(DocumentStatus::NeedReview->canTransitionTo(DocumentStatus::Extracting))->toBeTrue();
+    expect(DocumentStatus::Ready->canTransitionTo(DocumentStatus::Extracting))->toBeTrue();
+
+    // Tahap yang dilewati tetap tidak dapat dilompati dari awal pipeline.
+    expect(DocumentStatus::Uploaded->canTransitionTo(DocumentStatus::Extracting))->toBeFalse();
 });
 
 it('menandai kegagalan dan status yang menuntut tindakan user', function (): void {
@@ -89,17 +110,22 @@ it('memberi label indonesia pada setiap status', function (): void {
     }
 });
 
-it('menandai hanya tahap parse yang sudah dibangun', function (): void {
-    expect(DocumentProcessingStage::Parse->isImplemented())->toBeTrue();
-
+it('menandai tahap parse, classify, dan extract sudah dibangun', function (): void {
     foreach ([
+        DocumentProcessingStage::Parse,
         DocumentProcessingStage::Classify,
         DocumentProcessingStage::Extract,
+    ] as $stage) {
+        expect($stage->isImplemented())->toBeTrue();
+        expect($stage->phase())->toBeLessThanOrEqual(4);
+    }
+
+    foreach ([
         DocumentProcessingStage::Normalize,
         DocumentProcessingStage::Match,
     ] as $stage) {
         expect($stage->isImplemented())->toBeFalse();
-        expect($stage->phase())->toBeGreaterThan(3);
+        expect($stage->phase())->toBeGreaterThan(4);
     }
 });
 

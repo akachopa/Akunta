@@ -14,10 +14,10 @@ use Illuminate\Support\Facades\Route;
 /*
  * Prefix /api/v1 dikonfigurasi di bootstrap/app.php (plan.md §29).
  *
- * Endpoint yang tersedia dibatasi pada Phase 1–3: auth, businesses, accounts, journals,
- * periods, trial balance, dan documents. Endpoint transactions, review, reconciliation,
- * dan AI analyst pada plan.md §29.4–§29.5, §29.8, dan §29.10 belum dibuat karena berada
- * di phase berikutnya.
+ * Endpoint yang tersedia dibatasi pada Phase 1–4: auth, businesses, accounts, journals,
+ * periods, trial balance, documents, dan review dokumen. Endpoint transactions,
+ * reconciliation, dan AI analyst pada plan.md §29.4–§29.5 dan §29.10 belum dibuat karena
+ * berada di phase berikutnya.
  */
 
 Route::post('auth/login', [AuthController::class, 'login'])
@@ -55,6 +55,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('documents/{document}', [DocumentController::class, 'show'])->name('api.documents.show');
     Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('api.documents.reprocess');
     Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('api.documents.archive');
+
+    // plan.md §29.8 sebatas yang menyangkut dokumen; review transaksi menyusul pada Phase 5.
+    Route::post('documents/{document}/review/type', [DocumentController::class, 'confirmType'])->name('api.documents.review.type');
+    Route::post('documents/{document}/review/fields', [DocumentController::class, 'confirmFields'])->name('api.documents.review.fields');
+    Route::post('documents/{document}/review/approve', [DocumentController::class, 'approve'])->name('api.documents.review.approve');
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])->name('api.journals.show');
     Route::post('journals/{journal}/approve', [JournalController::class, 'approve'])->name('api.journals.approve');

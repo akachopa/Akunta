@@ -17,6 +17,7 @@ use App\Policies\ChartOfAccountPolicy;
 use App\Policies\DocumentPolicy;
 use App\Policies\JournalEntryPolicy;
 use App\Services\Ai\AiWorkerClient;
+use App\Services\Ai\ConfidenceEngine;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -37,6 +38,13 @@ class AppServiceProvider extends ServiceProvider
             $config = config('akunta.ai_worker');
 
             return new AiWorkerClient($config['url'], $config['token'], $config['timeout']);
+        });
+
+        $this->app->singleton(ConfidenceEngine::class, static function (): ConfidenceEngine {
+            /** @var array{auto_ready: string, review_recommended: string} $config */
+            $config = config('akunta.confidence');
+
+            return new ConfidenceEngine($config['auto_ready'], $config['review_recommended']);
         });
     }
 

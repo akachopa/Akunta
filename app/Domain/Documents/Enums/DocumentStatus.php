@@ -10,10 +10,11 @@ namespace App\Domain\Documents\Enums;
  * UPLOADED → QUEUED → PARSING → CLASSIFYING → EXTRACTING → NORMALIZING → MATCHING →
  * READY, dengan NEED_REVIEW, UNSUPPORTED, FAILED, dan ARCHIVED sebagai cabang.
  *
- * Phase 3 hanya menjalankan pipeline sampai PARSING selesai. Dokumen kemudian berhenti
- * di CLASSIFYING karena classifier-nya adalah Phase 4 (plan.md §37). Berhenti di state
- * yang menyebut tahap berikutnya lebih jujur daripada menandai dokumen READY, karena
- * dokumen memang belum menghasilkan transaksi apa pun.
+ * Sampai Phase 4 pipeline berjalan hingga EXTRACTING selesai. Dokumen yang ekstraksinya
+ * diterima dan confidence-nya melewati ambang auto-ready berakhir di READY; sisanya di
+ * NEED_REVIEW. READY di sini berarti data dokumennya lengkap dan tervalidasi, bukan bahwa
+ * transaksinya sudah dibuat: NORMALIZING dan MATCHING adalah pekerjaan Phase 5 dan Phase 7
+ * yang mengolah dokumen READY menjadi transaksi.
  */
 enum DocumentStatus: string
 {
@@ -65,20 +66,37 @@ enum DocumentStatus: string
             self::Parsing => [self::Classifying, self::NeedReview, self::Queued, self::Unsupported, self::Failed, self::Archived],
 
             /*
-             * CLASSIFYING dapat kembali ke QUEUED karena plan.md §29.3 menyediakan
-             * reprocess untuk dokumen apa pun, bukan hanya yang gagal. Selama Phase 3 ini
-             * juga satu-satunya jalan memproses ulang dokumen yang sudah selesai diparse.
+             * CLASSIFYING dan EXTRACTING dapat kembali ke QUEUED karena plan.md §29.3
+             * menyediakan reprocess untuk dokumen apa pun, bukan hanya yang gagal, dan
+             * karena percobaan yang terputus di tengah tahap harus dapat dipulihkan.
              */
             self::Classifying => [self::Extracting, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
-            self::Extracting => [self::Normalizing, self::NeedReview, self::Failed, self::Archived],
+            /*
+             * EXTRACTING dapat langsung ke READY. Sampai Phase 4, tahap terakhir yang
+             * benar-benar berjalan adalah ekstraksi, dan dokumen yang ekstraksinya
+             * diterima dengan confidence tinggi memang sudah selesai sebagai dokumen.
+             * NORMALIZING tetap ada sebagai state karena plan.md §25.1 mendefinisikannya,
+             * tetapi tidak ada dokumen yang memasukinya sebelum Phase 5 dibangun.
+             */
+            self::Extracting => [self::Ready, self::Normalizing, self::NeedReview, self::Queued, self::Failed, self::Archived],
+
             self::Normalizing => [self::Matching, self::NeedReview, self::Failed, self::Archived],
             self::Matching => [self::Ready, self::NeedReview, self::Failed, self::Archived],
 
-            // plan.md §37 Phase 3 acceptance: "failure dapat diretry". Retry mengembalikan
-            // dokumen ke QUEUED tanpa menyentuh berkas aslinya.
-            self::Ready => [self::NeedReview, self::Queued, self::Archived],
-            self::NeedReview => [self::Queued, self::Ready, self::Archived],
+            /*
+             * plan.md §37 Phase 3 acceptance: "failure dapat diretry". Retry mengembalikan
+             * dokumen ke QUEUED tanpa menyentuh berkas aslinya.
+             *
+             * Keduanya dapat kembali ke EXTRACTING karena koreksi reviewer atas jenis
+             * dokumen membuka kembali tahap ekstraksi: schema yang dipakai berubah,
+             * sehingga hasil sebelumnya tidak lagi berlaku. Melewatkan parse dan
+             * klasifikasi memang disengaja — berkasnya sudah terbaca dan jenisnya sudah
+             * ditetapkan manusia, jadi mengulang keduanya hanya membakar token untuk
+             * prediksi yang akan langsung dikalahkan (plan.md §17.1).
+             */
+            self::Ready => [self::NeedReview, self::Extracting, self::Queued, self::Archived],
+            self::NeedReview => [self::Queued, self::Extracting, self::Ready, self::Archived],
             self::Unsupported => [self::Queued, self::Archived],
             self::Failed => [self::Queued, self::Archived],
 
@@ -98,16 +116,26 @@ enum DocumentStatus: string
      */
     public function isProcessing(): bool
     {
-        return match ($this) {
-            self::Queued, self::Parsing, self::Extracting, self::Normalizing, self::Matching => true,
+        if ($this === self::Queued) {
+            return true;
+        }
 
-            /*
-             * CLASSIFYING dihitung tidak berjalan selama Phase 3: tidak ada worker yang
-             * akan mengubahnya, jadi polling tanpa akhir hanya membebani server. Phase 4
-             * memindahkannya kembali menjadi status berjalan.
-             */
-            default => false,
-        };
+        /*
+         * Status dianggap berjalan hanya bila tahap pipeline yang menghasilkannya memang
+         * sudah dibangun. Status yang menyebut tahap phase berikutnya bukan status
+         * berjalan: tidak ada worker yang akan mengubahnya, dan polling tanpa akhir hanya
+         * membebani server tanpa pernah menghasilkan perubahan.
+         *
+         * Menurunkannya dari DocumentProcessingStage, bukan menuliskannya ulang, menjaga
+         * kedua enum tidak dapat menyimpang ketika phase berikutnya dibangun.
+         */
+        foreach (DocumentProcessingStage::cases() as $stage) {
+            if ($stage->runningStatus() === $this) {
+                return $stage->isImplemented();
+            }
+        }
+
+        return false;
     }
 
     public function isFailure(): bool

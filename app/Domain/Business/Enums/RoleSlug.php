@@ -45,6 +45,11 @@ enum RoleSlug: string
      * upload karena rekonsiliasi pada plan.md §4.4 menuntut mutasi bank klien berada di
      * dalam sistem.
      *
+     * Review dokumen diberikan kepada owner dan accountant. plan.md §4.2 memberi owner
+     * hak "approve transaksi" dan §4.4 memberi accountant hak "review & koreksi", jadi
+     * keduanya memang menyatakan kebenaran data. Staff tidak: §4.3 membatasinya pada input
+     * dan melihat, dan koreksi field adalah pernyataan yang menjadi dasar jurnal.
+     *
      * @return array<int, PermissionSlug>
      */
     public function permissions(): array
@@ -60,6 +65,7 @@ enum RoleSlug: string
                 PermissionSlug::DocumentView,
                 PermissionSlug::DocumentUpload,
                 PermissionSlug::DocumentManage,
+                PermissionSlug::DocumentReview,
                 PermissionSlug::BankAccountView,
                 PermissionSlug::BankAccountManage,
                 PermissionSlug::PeriodView,
@@ -91,6 +97,7 @@ enum RoleSlug: string
                 PermissionSlug::DocumentView,
                 PermissionSlug::DocumentUpload,
                 PermissionSlug::DocumentManage,
+                PermissionSlug::DocumentReview,
                 PermissionSlug::BankAccountView,
                 PermissionSlug::BankAccountManage,
                 PermissionSlug::PeriodView,

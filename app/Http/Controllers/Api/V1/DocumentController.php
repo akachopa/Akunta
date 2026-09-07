@@ -9,9 +9,12 @@ use App\Domain\Documents\Enums\InboxFilter;
 use App\Domain\Documents\Models\Document;
 use App\Http\Controllers\Controller;
 use App\Http\Presenters\DocumentPresenter;
+use App\Http\Requests\ConfirmDocumentFieldsRequest;
+use App\Http\Requests\ConfirmDocumentTypeRequest;
 use App\Http\Requests\StoreDocumentRequest;
 use App\Services\DocumentProcessing\DocumentIngestionService;
 use App\Services\DocumentProcessing\DocumentProcessingService;
+use App\Services\DocumentProcessing\DocumentReviewService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,6 +26,12 @@ use Illuminate\Http\Request;
  * GET    /documents/{id}
  * POST   /documents/{id}/reprocess
  * POST   /documents/{id}/archive
+ *
+ * Ditambah endpoint review plan.md §29.8 yang menyangkut dokumen:
+ *
+ * POST   /documents/{id}/review/type
+ * POST   /documents/{id}/review/fields
+ * POST   /documents/{id}/review/approve
  *
  * GET /documents/{id} adalah endpoint yang dipakai klien untuk polling status pipeline
  * (plan.md §37 Phase 3 "processing status real-time/polling").
@@ -91,7 +100,16 @@ class DocumentController extends Controller
     {
         $this->authorize('view', $document);
 
-        $document->load(['pages', 'processingJobs', 'uploader', 'archiver']);
+        $document->load([
+            'pages',
+            'processingJobs',
+            'uploader',
+            'archiver',
+            'reviewer',
+            'fields.confirmer',
+            'extractions',
+            'predictions.candidates',
+        ]);
 
         return response()->json(['data' => $this->presenter->detail($document)]);
     }
@@ -110,6 +128,58 @@ class DocumentController extends Controller
         $this->authorize('archive', $document);
 
         $this->processing->archive($document, $request->user(), $request->string('reason')->value() ?: null);
+
+        return response()->json(['data' => $this->presenter->summary($document->refresh())]);
+    }
+
+    /**
+     * plan.md §16.2: reviewer menetapkan jenis dokumen.
+     */
+    public function confirmType(
+        ConfirmDocumentTypeRequest $request,
+        Document $document,
+        DocumentReviewService $review,
+    ): JsonResponse {
+        $this->authorize('review', $document);
+
+        $review->confirmDocumentType(
+            $document,
+            $request->documentType(),
+            $request->user(),
+            $request->reason(),
+        );
+
+        return response()->json(['data' => $this->presenter->summary($document->refresh())]);
+    }
+
+    /**
+     * plan.md §16.2: reviewer memastikan nilai field hasil ekstraksi.
+     */
+    public function confirmFields(
+        ConfirmDocumentFieldsRequest $request,
+        Document $document,
+        DocumentReviewService $review,
+    ): JsonResponse {
+        $this->authorize('review', $document);
+
+        $review->confirmFields(
+            $document,
+            $request->fieldValues(),
+            $request->user(),
+            $request->reason(),
+        );
+
+        return response()->json(['data' => $this->presenter->summary($document->refresh())]);
+    }
+
+    /**
+     * plan.md §16.1: persetujuan manusia atas dokumen.
+     */
+    public function approve(Request $request, Document $document, DocumentReviewService $review): JsonResponse
+    {
+        $this->authorize('review', $document);
+
+        $review->approve($document, $request->user(), $request->string('reason')->value() ?: null);
 
         return response()->json(['data' => $this->presenter->summary($document->refresh())]);
     }

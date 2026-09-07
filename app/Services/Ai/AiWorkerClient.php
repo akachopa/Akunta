@@ -4,19 +4,29 @@ declare(strict_types=1);
 
 namespace App\Services\Ai;
 
+use App\Domain\Documents\Exceptions\DocumentIntelligenceFailed;
+use App\Domain\Documents\Exceptions\DocumentOutputRejected;
 use App\Domain\Documents\Exceptions\DocumentParsingFailed;
+use App\Domain\Documents\Exceptions\NoExtractorAvailable;
 use App\Domain\Documents\Exceptions\UnsupportedDocumentFile;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 
 /**
  * Klien HTTP menuju Python AI Worker (plan.md §26.2).
  *
- * Endpoint yang dipakai saat ini: health check dan parsing deterministik berkas dokumen.
- * Klasifikasi dan ekstraksi terstruktur menyusul pada Phase 4. Klien ini sengaja tidak
- * mengetahui provider AI apa pun, karena pemilihan provider berada di dalam worker
- * (plan.md §13.3, §44.12).
+ * Endpoint yang dipakai: health check, parsing deterministik berkas, klasifikasi dokumen
+ * (§14.1), dan ekstraksi terstruktur (§14.2). Klien ini sengaja tidak mengetahui provider
+ * AI apa pun, karena pemilihan provider berada di dalam worker (plan.md §13.3, §44.12).
+ *
+ * Pemetaan kode status HTTP menjadi exception adalah keputusan penting di kelas ini, karena
+ * ia menentukan apa yang diretry queue:
+ *
+ * - 503 dan connection error → DocumentIntelligenceFailed, layak diretry;
+ * - 415 → NoExtractorAvailable, mengulang tidak berguna;
+ * - 422 → DocumentOutputRejected, mengulang menghasilkan penolakan yang sama.
  */
 class AiWorkerClient
 {
@@ -106,6 +116,88 @@ class AiWorkerClient
         $payload = $response->json() ?? [];
 
         return DocumentParseResult::fromArray($payload);
+    }
+
+    /**
+     * Klasifikasi dokumen (plan.md §14.1).
+     *
+     * Halaman hasil parse dikirim sebagai teks, bukan berkasnya kembali. Halaman sudah
+     * tersimpan sejak tahap parse, dan mengirim teks jauh lebih murah daripada mengirim
+     * berkas serta memaksa worker memparse ulang (plan.md §13.2).
+     *
+     * @param  array<int, array<string, mixed>>  $pages
+     */
+    public function classifyDocument(
+        string $filename,
+        ?string $mimeType,
+        array $pages,
+        ?string $businessContext = null,
+    ): DocumentClassificationResult {
+        $response = $this->send('classify', '/v1/classify', [
+            'filename' => $filename,
+            'mime_type' => $mimeType,
+            'business_context' => $businessContext,
+            'pages' => $pages,
+        ]);
+
+        /** @var array<string, mixed> $payload */
+        $payload = $response->json() ?? [];
+
+        return DocumentClassificationResult::fromArray($payload);
+    }
+
+    /**
+     * Ekstraksi terstruktur (plan.md §14.2).
+     *
+     * @param  array<int, array<string, mixed>>  $pages
+     */
+    public function extractDocument(
+        string $documentType,
+        array $pages,
+        ?string $businessContext = null,
+    ): DocumentExtractionResult {
+        $response = $this->send('extract', '/v1/extract', [
+            'document_type' => $documentType,
+            'business_context' => $businessContext,
+            'pages' => $pages,
+        ]);
+
+        /** @var array<string, mixed> $payload */
+        $payload = $response->json() ?? [];
+
+        return DocumentExtractionResult::fromArray($payload);
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function send(string $task, string $endpoint, array $body): Response
+    {
+        try {
+            $response = $this->request()->post($endpoint, $body);
+        } catch (ConnectionException $exception) {
+            throw DocumentIntelligenceFailed::workerUnreachable($task, $exception->getMessage());
+        }
+
+        $detail = $this->extractDetail($response->json());
+
+        if ($response->status() === 415) {
+            throw NoExtractorAvailable::forType(null, $detail);
+        }
+
+        if ($response->status() === 422) {
+            throw DocumentOutputRejected::classification($detail);
+        }
+
+        if ($response->status() === 503) {
+            throw DocumentIntelligenceFailed::providerUnavailable($task, $detail);
+        }
+
+        if ($response->failed()) {
+            throw DocumentIntelligenceFailed::workerRejected($task, $response->status(), $detail);
+        }
+
+        return $response;
     }
 
     private function request(): PendingRequest

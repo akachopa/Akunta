@@ -58,8 +58,7 @@ enum InboxFilter: string
 
                 /*
                  * CLASSIFYING ikut ditampilkan sebagai "diproses" karena dari sudut
-                 * pandang user dokumennya memang belum selesai. Selama Phase 3 dokumen
-                 * berhenti di status ini menunggu classifier Phase 4.
+                 * pandang user dokumennya memang belum selesai.
                  */
                 DocumentStatus::Classifying,
 

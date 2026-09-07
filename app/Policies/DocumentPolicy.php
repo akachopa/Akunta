@@ -48,6 +48,17 @@ class DocumentPolicy
     }
 
     /**
+     * Meninjau hasil pembacaan dokumen (plan.md §16, §17.1).
+     *
+     * Dipisahkan dari `manage` karena akibatnya berbeda: reprocess memindahkan dokumen di
+     * dalam pipeline, sedangkan review menetapkan nilai yang akan menjadi jurnal.
+     */
+    public function review(User $user, Document $document): bool
+    {
+        return $user->hasBusinessPermission($document->business_id, PermissionSlug::DocumentReview);
+    }
+
+    /**
      * plan.md §44.7 melarang penghapusan jejak, dan dokumen adalah evidence journal.
      * Penghapusan permanen karena itu tidak diizinkan bagi siapa pun; arsip adalah
      * satu-satunya cara mengeluarkan dokumen dari inbox.

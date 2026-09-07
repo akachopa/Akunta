@@ -11,6 +11,7 @@ use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentDownloadController;
+use App\Http\Controllers\DocumentReviewController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\TrialBalanceController;
 use Illuminate\Support\Facades\Route;
@@ -64,6 +65,14 @@ Route::middleware('auth')->group(function (): void {
             Route::get('documents/{document}/download', DocumentDownloadController::class)->name('documents.download');
             Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
             Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('documents.archive');
+
+            /*
+             * plan.md §16: review adalah antrean kerja tersendiri, jadi tindakannya
+             * dipisahkan per maksud alih-alih menjadi satu endpoint "simpan review".
+             */
+            Route::post('documents/{document}/review/type', [DocumentReviewController::class, 'type'])->name('documents.review.type');
+            Route::post('documents/{document}/review/fields', [DocumentReviewController::class, 'fields'])->name('documents.review.fields');
+            Route::post('documents/{document}/review/approve', [DocumentReviewController::class, 'approve'])->name('documents.review.approve');
 
             Route::get('accounts', [ChartOfAccountController::class, 'index'])->name('accounts.index');
             Route::post('accounts', [ChartOfAccountController::class, 'store'])->name('accounts.store');

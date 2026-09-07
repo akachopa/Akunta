@@ -7,9 +7,9 @@ namespace App\Domain\Business\Enums;
 /**
  * Permission granular yang dipakai policy.
  *
- * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–3.
- * Permission untuk review, rekonsiliasi, dan closing ditambahkan ketika phase-nya
- * dikerjakan, agar tidak ada permission menggantung tanpa penegakan.
+ * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–4.
+ * Permission untuk rekonsiliasi dan closing ditambahkan ketika phase-nya dikerjakan, agar
+ * tidak ada permission menggantung tanpa penegakan.
  */
 enum PermissionSlug: string
 {
@@ -22,6 +22,14 @@ enum PermissionSlug: string
     case DocumentView = 'document.view';
     case DocumentUpload = 'document.upload';
     case DocumentManage = 'document.manage';
+
+    /*
+     * Dipisahkan dari `document.manage` karena akibatnya berbeda. Reprocess dan archive
+     * hanya memindahkan dokumen di dalam pipeline; review menetapkan nilai yang akan
+     * menjadi transaksi, dan pernyataannya tercatat sebagai keputusan manusia
+     * (plan.md §16, §17.1).
+     */
+    case DocumentReview = 'document.review';
 
     case BankAccountView = 'bank_account.view';
     case BankAccountManage = 'bank_account.manage';
@@ -58,6 +66,7 @@ enum PermissionSlug: string
             self::DocumentView => 'Melihat dokumen pada inbox',
             self::DocumentUpload => 'Mengunggah dokumen ke inbox',
             self::DocumentManage => 'Memproses ulang dan mengarsipkan dokumen',
+            self::DocumentReview => 'Meninjau dan mengoreksi hasil pembacaan dokumen',
             self::BankAccountView => 'Melihat rekening bank',
             self::BankAccountManage => 'Mengelola rekening bank',
             self::PeriodView => 'Melihat accounting period',

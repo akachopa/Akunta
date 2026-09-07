@@ -101,7 +101,16 @@ class DocumentController extends Controller
     {
         $this->authorize('view', $document);
 
-        $document->load(['pages', 'processingJobs', 'uploader', 'archiver']);
+        $document->load([
+            'pages',
+            'processingJobs',
+            'uploader',
+            'archiver',
+            'reviewer',
+            'fields.confirmer',
+            'extractions',
+            'predictions.candidates',
+        ]);
 
         $user = $request->user();
 
@@ -112,6 +121,7 @@ class DocumentController extends Controller
                 'reprocess' => $user?->can('reprocess', $document) ?? false,
                 'archive' => $user?->can('archive', $document) ?? false,
                 'download' => $user?->can('download', $document) ?? false,
+                'review' => $user?->can('review', $document) ?? false,
             ],
         ]);
     }

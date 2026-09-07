@@ -112,7 +112,7 @@ it('memaparkan status pipeline yang dapat dipolling klien', function (): void {
         ->get("/businesses/{$business->getKey()}/documents")
         ->assertInertia(fn ($page) => $page
             ->where('documents.data.0.processing_status', 'classifying')
-            ->where('documents.data.0.is_processing', false)
+            ->where('documents.data.0.is_processing', true)
             ->where('documents.data.0.page_count', 1)
         );
 });
@@ -140,8 +140,12 @@ it('menampilkan viewer dengan halaman dan riwayat proses', function (): void {
             ->where('document.pages.0.is_tabular', true)
             ->where('document.pages.0.row_count', 2)
 
-            // Timeline memuat tahap parse yang selesai dan empat tahap phase berikutnya.
-            ->count('document.processing_jobs', 5)
+            /*
+             * Timeline memuat tahap parse yang selesai dan dua tahap phase berikutnya
+             * (normalize, match). Classify dan extract tidak muncul sebagai baris menunggu
+             * karena keduanya sudah dibangun dan job-nya dibuat saat tahapnya dijalankan.
+             */
+            ->count('document.processing_jobs', 3)
             ->where('document.processing_jobs.0.stage', 'parse')
             ->where('document.processing_jobs.0.status', 'succeeded')
             ->where('can.reprocess', true)
