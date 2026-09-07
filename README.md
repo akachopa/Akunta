@@ -6,9 +6,15 @@ Akunta menghasilkan pembukuan double-entry yang benar, dan akuntan memverifikasi
 `plan.md` adalah source of truth untuk produk ini. Status implementasi per phase dicatat
 di [`docs/IMPLEMENTATION_CHECKLIST.md`](docs/IMPLEMENTATION_CHECKLIST.md).
 
-**Status saat ini: Phase 0, 1, dan 2 selesai.** Phase 3 ke atas (seluruh AI document
-processing) belum dikerjakan, mengikuti `plan.md` §48 yang mewajibkan Accounting
-Foundation lulus test lebih dulu.
+**Status saat ini: Phase 0, 1, 2, dan 3 selesai.** Fondasinya kini multi-tenant,
+accounting-safe, punya source document yang immutable, dan punya queue processing —
+target pertama pada `plan.md` §48.
+
+Phase 4 ke atas belum dikerjakan. Batasnya: Phase 3 mengubah berkas menjadi teks dan
+tabel per halaman secara deterministik, sedangkan **menafsirkan** isinya (menentukan
+jenis dokumen, mengekstraksi field, memberi confidence) adalah Phase 4. Karena itu
+dokumen berhenti di status `classifying` setelah parse berhasil, dan `document_type`
+hanya terisi bila user menyebutkannya saat upload.
 
 ## Arsitektur
 
@@ -28,10 +34,11 @@ SQLite.
 ### Struktur direktori
 
 ```
-app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Tenancy, Audit)
-app/Services/        Logika bisnis: posting journal, provisioning bisnis, audit logger
-app/Http/            Controller web (Inertia) dan API v1, middleware, form request
-ai-worker/           FastAPI worker beserta abstraksi provider AI
+app/Domain/          Model, enum, dan value object per domain (Accounting, Business, Documents, Tenancy, Audit)
+app/Services/        Logika bisnis: posting journal, provisioning bisnis, pemrosesan dokumen, audit logger
+app/Jobs/            Queue job, termasuk pipeline pemrosesan dokumen
+app/Http/            Controller web (Inertia) dan API v1, middleware, form request, presenter
+ai-worker/           FastAPI worker: parser dokumen deterministik dan abstraksi provider AI
 resources/js/        Halaman, layout, dan komponen React
 database/migrations Schema PostgreSQL
 tests/               Pest: Unit dan Feature
@@ -112,6 +119,25 @@ Aturan berikut ada di `plan.md` §44 dan §45, dan setiap aturan punya test yang
 - Data selalu terikat pada satu tenant. Global scope, middleware, dan policy memastikan
   data bisnis lain tidak pernah terbaca.
 - Laporan hanya dihitung dari journal yang sudah masuk ledger, bukan dari raw transaction.
+- Berkas dokumen asli bersifat immutable dan tidak dapat dihapus. Reprocess selalu
+  membaca berkas yang sama, dan dokumen hanya dapat diarsipkan.
+- Dokumen disimpan di storage private yang dipartisi per bisnis, dan diakses lewat
+  signed URL berumur pendek.
+
+## Pipeline dokumen
+
+Upload tidak memparse apa pun di dalam request: berkas asli disimpan lebih dulu, lalu
+`ProcessDocumentJob` mengantre. Job mengirim berkas ke AI worker sebagai multipart,
+sehingga worker tidak perlu kredensial object storage.
+
+Worker memilih parser berdasarkan ekstensi dan MIME (`pypdf`, `openpyxl`, CSV, `Pillow`)
+lalu mengembalikan teks atau baris tabel per halaman. Halaman hasil pindaian ditandai
+`needs_ocr` agar Phase 4 tahu mana yang perlu OCR. Berkas tanpa parser (HTTP 415) dan
+berkas rusak (HTTP 422) dibedakan: yang pertama menjadi status `unsupported`, yang kedua
+gagal dan dapat diproses ulang.
+
+Setiap percobaan tercatat di `document_processing_jobs` beserta durasi dan pesan
+kesalahannya, sehingga status di inbox dapat dipolling dan kegagalan dapat diusut.
 
 ## Lisensi
 

@@ -34,9 +34,27 @@ Keputusan struktur yang mengikuti `plan.md` §27 dan §28:
 
 ## 2. Scope Iterasi Ini
 
-Hanya **Phase 0, Phase 1, dan Phase 2**. Phase 3 ke atas (Document Inbox, Document
-Intelligence, dan seluruh AI document processing) **tidak** dikerjakan pada iterasi ini,
-sesuai `plan.md` §38 dan §48 yang mewajibkan Accounting Foundation lulus test lebih dulu.
+**Phase 0, Phase 1, Phase 2, dan Phase 3.** Phase 3 baru dimulai setelah seluruh test
+Accounting Foundation Phase 2 lulus, sesuai `plan.md` §38 dan §48.
+
+Phase 4 ke atas (Document Intelligence: classifier, structured extraction, confidence,
+review UI) **tidak** dikerjakan. Batas ini penting karena mudah terlanggar: Phase 3
+hanya membangun inbox dokumen dan **parsing deterministik** (mengubah berkas menjadi
+teks/tabel per halaman), sementara **interpretasi** isi dokumen — menentukan jenis
+dokumen, mengekstraksi field, memberi confidence — adalah Phase 4.
+
+Konsekuensi batas tersebut pada kode:
+
+- Tahap `parse` adalah satu-satunya tahap pipeline `plan.md` §13.1 yang dieksekusi.
+  Tahap `classify` dan `extract` dicatat sebagai `pending` supaya jejaknya terlihat,
+  bukan diam-diam dilewati.
+- Dokumen berhenti di status `classifying` setelah parse berhasil. Itu bukan bug:
+  antrean menunggu classifier Phase 4.
+- `document_type` hanya terisi bila user memberi petunjuk saat upload
+  (`document_type_source = 'user'`). Tidak ada penebakan otomatis.
+- Parser di AI worker tidak memanggil AI provider sama sekali (diuji oleh
+  `test_parsers.py`), sehingga tidak ada biaya token maupun output non-deterministik
+  pada phase ini.
 
 ---
 
@@ -130,9 +148,56 @@ Acceptance `plan.md` §37 Phase 2:
 
 ---
 
-## 6. Testing Strategy Coverage (`plan.md` §33)
+## 6. Phase 3 — Document Inbox
 
-Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–2:
+Build items per `plan.md` §37 Phase 3.
+
+| # | Item | Status |
+| --- | --- | --- |
+| 3.1 | Upload multi-file + validasi MIME/ukuran + sanitasi nama berkas | Selesai |
+| 3.2 | Object storage private per bisnis (`documents/{business_id}/...`) | Selesai |
+| 3.3 | Processing status + state machine `plan.md` §25.1 | Selesai |
+| 3.4 | Parser PDF (`pypdf`, teks per halaman, flag `needs_ocr`) | Selesai |
+| 3.5 | Parser Excel (`openpyxl`, multi-sheet, presisi desimal dipertahankan) | Selesai |
+| 3.6 | Parser CSV (deteksi delimiter + encoding) | Selesai |
+| 3.7 | Parser JPG/PNG (`Pillow`, metadata dimensi; teksnya menunggu OCR Phase 4) | Selesai |
+| 3.8 | Document viewer (halaman teks/tabel + timeline pemrosesan) | Selesai |
+| 3.9 | Retry/reprocess dokumen gagal maupun terarsip | Selesai |
+| 3.10 | Tabel `documents`, `document_files`, `document_pages`, `document_processing_jobs` (`plan.md` §23.1) | Selesai |
+| 3.11 | Immutability berkas asli (partial unique index + guard model) per `plan.md` §44.7 | Selesai |
+| 3.12 | Queue job idempotent + unik per dokumen + retry berjenjang | Selesai |
+| 3.13 | Endpoint `/v1/parse` pada AI worker + internal token auth | Selesai |
+| 3.14 | Signed URL download berumur pendek dengan fallback streaming (`plan.md` §30) | Selesai |
+| 3.15 | Permission `document.view`, `document.upload`, `document.manage` | Selesai |
+| 3.16 | Audit log upload, reprocess, archive, dan download (`plan.md` §31) | Selesai |
+| 3.17 | API `/api/v1` documents (`plan.md` §29.3) | Selesai |
+| 3.18 | UI Inertia: inbox dengan tab status, drag-and-drop upload, polling | Selesai |
+
+Acceptance `plan.md` §37 Phase 3:
+
+| Acceptance | Status | Bukti |
+| --- | --- | --- |
+| Multi-file upload berhasil | Selesai | `DocumentUploadTest` (satu dan banyak berkas, referensi berurutan per bisnis, penolakan tipe/ukuran/ekstensi yang dipalsukan) |
+| Original file tetap tersimpan | Selesai | `DocumentFileImmutabilityTest` (update/delete ditolak model dan constraint DB, berkas asli utuh setelah beberapa kali reprocess) |
+| Processing status real-time/polling | Selesai | `DocumentInboxTest` (status pipeline terekspos ke klien, tab tersaring di sisi server) + polling di `pages/documents/Index.tsx` |
+| Failure dapat diretry | Selesai | `DocumentProcessingTest` (percobaan gagal dicatat lalu dilempar ulang ke queue, kegagalan permanen setelah percobaan habis, reprocess memakai berkas asli yang sama tanpa menduplikasi halaman) |
+
+Catatan implementasi yang perlu diketahui saat melanjutkan ke Phase 4:
+
+- Berkas dikirim ke worker sebagai multipart dari storage, bukan lewat path bersama,
+  supaya worker tidak perlu kredensial object storage (diuji `DocumentProcessingTest`).
+- Worker membedakan berkas tanpa parser (HTTP 415 → status `unsupported`) dari berkas
+  rusak (HTTP 422 → gagal dan dapat diretry). Keduanya bukan kegagalan sistem.
+- Kegagalan menghubungi worker dilempar ulang agar queue melakukan retry; dokumen baru
+  ditandai `failed` setelah seluruh percobaan habis.
+- Dokumen tidak pernah dapat dihapus. Yang tersedia hanya arsip, dan `DocumentPolicy`
+  menutup jalur `delete` untuk semua role (`plan.md` §44.7).
+
+---
+
+## 7. Testing Strategy Coverage (`plan.md` §33)
+
+Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–3:
 
 | Area | Status |
 | --- | --- |
@@ -148,17 +213,16 @@ Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–2:
 (`GoldenDatasetTest` + `GoldenDatasetSeeder`) yang mencakup sales, purchases,
 operating expenses, owner transactions, loans, receivable/payable payments, QRIS
 settlement dengan MDR, dan internal bank transfer. Bagian dataset yang bergantung pada
-AI pipeline (upload dokumen, ekstraksi) belum dikerjakan karena masuk Phase 3+.
+ekstraksi AI belum dikerjakan karena masuk Phase 4+.
 
 ---
 
-## 7. Item `plan.md` yang BELUM Dikerjakan
+## 8. Item `plan.md` yang BELUM Dikerjakan
 
-Sengaja tidak dikerjakan karena berada di luar Phase 0–2.
+Sengaja tidak dikerjakan karena berada di luar Phase 0–3.
 
-### Di luar phase (Phase 3 ke atas)
+### Di luar phase (Phase 4 ke atas)
 
-- `plan.md` §37 Phase 3 — Document Inbox (upload, viewer, processing status, retry).
 - `plan.md` §37 Phase 4 — Document Intelligence (classifier, extraction, confidence, review UI).
 - `plan.md` §37 Phase 5 — Transaction Normalization (bank row parser, canonical transaction).
 - `plan.md` §37 Phase 6 — Entity Resolution (entity master, aliases, fuzzy/AI matching).
@@ -170,58 +234,65 @@ Sengaja tidak dikerjakan karena berada di luar Phase 0–2.
 - `plan.md` §37 Phase 12 — Reporting (income statement, balance sheet, cash flow, AP/AR, drill-down).
 - `plan.md` §37 Phase 13 — Closing Center (readiness score, checklist, issue detection).
 - `plan.md` §37 Phase 14 — AI Financial Analyst.
+- `plan.md` §13.1 — tahap pipeline `classify`, `extract`, `normalize`, `entity_resolution`,
+  `duplicate_check`, `event_classification`, `journal_generation`, dan `review_routing`.
+  Hanya tahap `parse` yang dieksekusi pada Phase 3.
 - `plan.md` §14 — Prompt contracts (`classify_document`, `extract_invoice`, `classify_economic_event`).
-- `plan.md` §15 — Confidence Engine.
+- `plan.md` §15 — Confidence Engine. Ambang batasnya sudah ada di `config/akunta.php`
+  tetapi belum dipakai karena belum ada prediksi AI yang perlu dinilai.
+- `plan.md` §16 — OCR untuk dokumen hasil pindaian. Halaman yang membutuhkannya sudah
+  ditandai `needs_ocr` oleh parser PDF dan gambar, sehingga Phase 4 tinggal memprosesnya.
 - `plan.md` §17 — Feedback & learning layers.
 - `plan.md` §18 — Duplicate vs related document.
 - `plan.md` §22 — AI Financial Analyst insight cards.
-- `plan.md` §32 — Observability metrics & AI quality metrics.
+- `plan.md` §32 — Observability metrics & AI quality metrics. Durasi dan hasil tiap tahap
+  sudah dicatat di `document_processing_jobs`; agregasi metriknya belum dibuat.
 - `plan.md` §34 — Sample dataset 3 tipe bisnis berbasis dokumen nyata.
 - `plan.md` §36 — Dashboard MVP angka finansial (butuh posted journal dari pipeline AI).
 - `plan.md` §42, §43 — Future integrations & product evolution.
 - `plan.md` §47 — UAT checklist end-to-end.
 
 Tabel `plan.md` §23 yang belum dibuat karena milik phase berikutnya:
-`documents`, `document_files`, `document_pages`, `document_extractions`, `document_fields`,
-`document_processing_jobs`, `entities`, `entity_aliases`, `entity_identifiers`,
-`entity_relationships`, `transactions`, `transaction_sources`, `transaction_evidence`,
-`transaction_relations`, `transaction_tags`, `ai_predictions`, `ai_prediction_candidates`,
-`ai_feedback`, `ai_model_runs`, `ai_usage_logs`, `economic_event_types`,
-`economic_event_predictions`, `accounting_rules`, `accounting_rule_lines`, `review_tasks`,
-`review_actions`, `review_comments`, `reconciliations`, `reconciliation_items`,
-`reconciliation_matches`, `closing_periods`, `closing_checklists`, `closing_issues`.
+`document_extractions`, `document_fields`, `entities`, `entity_aliases`,
+`entity_identifiers`, `entity_relationships`, `transactions`, `transaction_sources`,
+`transaction_evidence`, `transaction_relations`, `transaction_tags`, `ai_predictions`,
+`ai_prediction_candidates`, `ai_feedback`, `ai_model_runs`, `ai_usage_logs`,
+`economic_event_types`, `economic_event_predictions`, `accounting_rules`,
+`accounting_rule_lines`, `review_tasks`, `review_actions`, `review_comments`,
+`reconciliations`, `reconciliation_items`, `reconciliation_matches`, `closing_periods`,
+`closing_checklists`, `closing_issues`.
 
 Catatan: `bank_accounts` (`plan.md` §23.2) **sudah** dibuat pada Phase 1 karena menjadi
-bagian onboarding bisnis di `plan.md` §5.1.
+bagian onboarding bisnis di `plan.md` §5.1. `documents`, `document_files`,
+`document_pages`, dan `document_processing_jobs` dibuat pada Phase 3.
 
-### Dalam scope Phase 0–2 tetapi butuh infrastruktur eksternal
+### Dalam scope Phase 0–3 tetapi butuh infrastruktur eksternal
 
 - `plan.md` §37 Phase 0 — deploy aktual ke staging. Repo sudah menyediakan Docker image,
   compose, dan CI, tetapi eksekusi deployment butuh host/registry/kredensial.
-- `plan.md` §30 — malware scanning, backup + restore test, dan secret manager produksi.
-  Rate limiting, private storage, dan audit log sudah ada di kode; sisanya adalah tugas
+- `plan.md` §30 — malware scanning dokumen yang diunggah. Validasi MIME berbasis isi
+  berkas dan sanitasi nama sudah ada, tetapi pemindaian antivirus butuh layanan eksternal.
+- `plan.md` §30 — backup + restore test dan secret manager produksi. Rate limiting,
+  private storage, signed URL, dan audit log sudah ada di kode; sisanya adalah tugas
   platform/operasional.
-- `plan.md` §30 — endpoint signed URL untuk mengunduh dokumen. TTL-nya sudah dikonfigurasi
-  di `config/akunta.php`, tetapi endpoint-nya menunggu Phase 3 karena belum ada dokumen
-  yang disimpan.
 - `plan.md` §41 — daily PostgreSQL backup dan object storage versioning (operasional).
 
 ---
 
-## 8. Verifikasi Iterasi Ini
+## 9. Verifikasi Iterasi Ini
 
 Perintah di bawah dijalankan pada commit terakhir branch ini, terhadap PostgreSQL 16 dan
 Redis 7 yang benar-benar berjalan.
 
 | Perintah | Hasil |
 | --- | --- |
-| `php artisan migrate:fresh --force` | Seluruh migration jalan tanpa error |
+| `php artisan migrate:fresh --force` | Seluruh 19 migration jalan tanpa error |
 | `php artisan db:seed --force` | `RolePermissionSeeder` dan `CoaTemplateSeeder` sukses |
-| `php artisan test` | 187 test, 791 assertion, seluruhnya lulus |
+| `php artisan test` | 262 test, 1235 assertion, seluruhnya lulus |
 | `vendor/bin/pint --test` | Lolos |
 | `vendor/bin/phpstan analyse` | Level 6, tanpa error |
 | `npm run lint` / `format:check` / `types` / `build` | Seluruhnya lolos |
-| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 7 test worker lulus |
+| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 36 test worker lulus |
 | `php artisan akunta:health --dispatch-queue-probe` | database, cache, object_storage, ai_worker, dan queue berstatus OK |
 | `php artisan queue:work --stop-when-empty` | `QueueHeartbeatJob` dieksekusi sampai selesai |
 
@@ -232,12 +303,29 @@ Distribusi test:
 | Phase 0 | `MoneyTest`, `AccountingEnumTest`, `QueueSmokeTest`, `AiWorkerClientTest`, `HealthCheckCommandTest` |
 | Phase 1 | `AuthenticationTest`, `BusinessOnboardingTest`, `MembershipTest`, `RolePermissionTest`, `MultiBusinessTest`, `AccountantMultiClientTest`, `TenantIsolationTest`, `AuditTrailTest` |
 | Phase 2 | `ChartOfAccountsTest`, `JournalEntryDataTest`, `JournalPostingTest`, `JournalLineConstraintTest`, `JournalImmutabilityTest`, `PeriodLockTest`, `TrialBalanceTest`, `GoldenDatasetTest`, `AccountingApiTest` |
+| Phase 3 | `DocumentEnumTest`, `DocumentUploadTest`, `DocumentProcessingTest`, `DocumentInboxTest`, `DocumentFileImmutabilityTest`, `DocumentIsolationTest`, `DocumentAuditTest` |
+| Phase 3 (worker) | `test_parsers.py`, `test_parse_api.py`, `test_health.py` |
 
 Catatan koreksi accounting yang muncul dari test Phase 2: trial balance semula hanya
 membaca `journal_entries.status = 'posted'`, sehingga sebuah reversal entry ikut terhitung
 tanpa entry aslinya dan membalik saldo akun. Laporan kini membaca
 `JournalEntryStatus::ledgerStatuses()` (`posted` dan `reversed`), sesuai `plan.md` §44.6
 yang mewajibkan koreksi lewat reversal entry, bukan lewat penghapusan entry asli.
+
+Koreksi yang muncul dari test Phase 3:
+
+- `DocumentProcessingService::queue()` semula menilai transisi state machine terhadap
+  salinan model di memori. Karena status dokumen berubah di queue worker, dokumen yang
+  sudah ditandai gagal permanen dapat gagal keluar dari state `failed` saat diproses
+  ulang. Model kini disegarkan lebih dulu.
+- Timeline pemrosesan pada viewer semula diurutkan menurut `created_at`. Tahap-tahap
+  Phase 4 dicatat sebagai `pending` di dalam satu transaksi, sehingga timestamp tidak
+  dapat membedakan urutannya. Urutan sekarang mengikuti urutan pipeline `plan.md` §13.1.
+
+Test Laravel tidak pernah memanggil worker Python: respons `/v1/parse` di-fake lewat
+`Tests\Support\UploadsDocuments`, sedangkan parser aslinya diuji pytest di `ai-worker`.
+Pemisahan ini menjaga test Laravel tetap deterministik dan tidak bergantung pada proses
+eksternal.
 
 `tests/Feature` tidak dianalisis PHPStan karena Pest mem-bind `$this` di dalam closure
 saat runtime; hal itu didokumentasikan di `phpstan.neon`.
