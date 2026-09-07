@@ -65,6 +65,22 @@ export type DocumentStatus =
     | 'failed'
     | 'archived';
 
+export type DocumentTypeSource = 'user' | 'ai' | 'review';
+
+/**
+ * plan.md §15.2.
+ */
+export type ConfidenceBand = 'ready' | 'review_recommended' | 'human_confirmation_required';
+
+export interface ConfidenceAssessment {
+    score: string;
+    band: ConfidenceBand;
+    band_label: string;
+    components: Record<string, string | null>;
+    auto_ready_threshold: string;
+    review_threshold: string;
+}
+
 export interface DocumentSummary {
     id: string;
     reference: string;
@@ -80,12 +96,32 @@ export interface DocumentSummary {
     is_retryable: boolean;
     document_type: string | null;
     document_type_label: string | null;
-    document_type_source: string | null;
+    document_type_source: DocumentTypeSource | null;
+    document_type_source_label: string | null;
     page_count: number | null;
     content_kind: string | null;
     needs_ocr: boolean;
+
+    /*
+     * Proyeksi canonical plan.md §8.1. Nilai uang berupa string: plan.md §44.14 melarang
+     * float untuk uang, dan number JavaScript adalah float.
+     */
+    document_date: string | null;
+    currency: string | null;
+    subtotal: string | null;
+    tax: string | null;
+    total: string | null;
+
+    classification_confidence: string | null;
+    extraction_confidence: string | null;
+    confidence: ConfidenceAssessment | null;
+    review_reason: string | null;
+
     uploaded_at: string;
     parsed_at: string | null;
+    classified_at: string | null;
+    extracted_at: string | null;
+    reviewed_at: string | null;
     failure_reason: string | null;
     archived_at: string | null;
 }
@@ -121,12 +157,75 @@ export interface DocumentProcessingJob {
     result: Record<string, unknown> | null;
 }
 
+export type DocumentFieldKind = 'text' | 'money' | 'date' | 'integer';
+
+/**
+ * Satu nilai hasil ekstraksi beserta buktinya (plan.md §45.10, §45.12).
+ */
+export interface DocumentField {
+    id: string;
+    key: string;
+    label: string;
+    kind: DocumentFieldKind;
+    value: string | null;
+    confidence: string;
+    source: 'ai' | 'review';
+    source_label: string;
+    page_number: number | null;
+    source_text: string | null;
+    is_confirmed: boolean;
+    confirmed_by: string | null;
+    confirmed_at: string | null;
+}
+
+export interface DocumentStatementRow {
+    row_index: number;
+    page_number: number | null;
+    values: Record<string, string | null>;
+}
+
+export interface DocumentExtractionAttempt {
+    id: string;
+    attempt: number;
+    document_type: string;
+    document_type_label: string;
+    extractor: string;
+    schema_version: string;
+    status: 'accepted' | 'rejected';
+    status_label: string;
+    confidence: string | null;
+    validation_errors: string[];
+    created_at: string;
+}
+
+export interface DocumentClassification {
+    predicted_value: string;
+    predicted_label: string;
+    confidence: string;
+    reason: string | null;
+    status: string;
+    status_label: string;
+    created_at: string;
+    candidates: { value: string; label: string; confidence: string; rank: number }[];
+}
+
+export interface DocumentTypeOption {
+    value: string;
+    label: string;
+}
+
 export interface DocumentDetail extends DocumentSummary {
     checksum_sha256: string;
     uploaded_by: string | null;
     archived_by: string | null;
+    reviewed_by: string | null;
     pages: DocumentPage[];
     processing_jobs: DocumentProcessingJob[];
+    fields: DocumentField[];
+    rows: DocumentStatementRow[];
+    extractions: DocumentExtractionAttempt[];
+    classification: DocumentClassification | null;
+    documentTypes: DocumentTypeOption[];
 }
 
 export interface TrialBalanceRow {

@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useEffect } from 'react';
 
 import Card from '@/components/Card';
+import ConfidenceBadge from '@/components/ConfidenceBadge';
 import DocumentUploader from '@/components/DocumentUploader';
 import StatusBadge from '@/components/StatusBadge';
 import { formatBytes, formatDateTime } from '@/lib/money';
@@ -112,6 +113,7 @@ export default function DocumentInbox({
                                         <th className="py-2 pr-4">Berkas</th>
                                         <th className="py-2 pr-4">Jenis</th>
                                         <th className="py-2 pr-4">Status</th>
+                                        <th className="py-2 pr-4">Keyakinan</th>
                                         <th className="py-2 pr-4">Halaman</th>
                                         <th className="py-2 pr-4">Ukuran</th>
                                         <th className="py-2 pr-4">Diunggah</th>
@@ -137,6 +139,12 @@ export default function DocumentInbox({
                                                         {document.failure_reason}
                                                     </span>
                                                 )}
+                                                {!document.failure_reason &&
+                                                    document.review_reason && (
+                                                        <span className="mt-1 block text-xs text-amber-700">
+                                                            {document.review_reason}
+                                                        </span>
+                                                    )}
                                             </td>
                                             <td className="py-2 pr-4 text-slate-600">
                                                 {document.document_type_label ?? 'Belum ditentukan'}
@@ -145,6 +153,12 @@ export default function DocumentInbox({
                                                 <StatusBadge
                                                     status={document.processing_status}
                                                     label={document.processing_status_label}
+                                                />
+                                            </td>
+                                            <td className="py-2 pr-4">
+                                                <ConfidenceBadge
+                                                    confidence={document.confidence?.score ?? null}
+                                                    band={document.confidence?.band ?? null}
                                                 />
                                             </td>
                                             <td className="py-2 pr-4 text-slate-600">

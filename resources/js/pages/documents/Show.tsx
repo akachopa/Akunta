@@ -2,6 +2,8 @@ import { Head, Link, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 
 import Card from '@/components/Card';
+import ConfidenceBadge from '@/components/ConfidenceBadge';
+import DocumentReviewPanel from '@/components/DocumentReviewPanel';
 import StatusBadge from '@/components/StatusBadge';
 import { formatBytes, formatDateTime, formatDuration } from '@/lib/money';
 import type { DocumentDetail, DocumentPage } from '@/types';
@@ -9,7 +11,7 @@ import type { DocumentDetail, DocumentPage } from '@/types';
 interface Props {
     business: { id: string; name: string };
     document: DocumentDetail;
-    can: { reprocess: boolean; archive: boolean; download: boolean };
+    can: { reprocess: boolean; archive: boolean; download: boolean; review: boolean };
 }
 
 const POLL_INTERVAL_MS = 4000;
@@ -22,8 +24,8 @@ function PagePreview({ page }: { page: DocumentPage }) {
     if (page.needs_ocr) {
         return (
             <p className="text-sm text-slate-500">
-                Isi halaman ini hanya dapat dibaca lewat OCR. Pembacaan gambar dan PDF hasil scan
-                dibangun pada Phase 4.
+                Isi halaman ini hanya dapat dibaca lewat OCR, dan OCR belum tersedia. Datanya masih
+                dapat dilengkapi lewat review manual.
             </p>
         );
     }
@@ -168,11 +170,33 @@ export default function DocumentShow({ business, document, can }: Props) {
                             <dt className="text-slate-500">Jenis dokumen</dt>
                             <dd className="mt-1 text-slate-800">
                                 {document.document_type_label ?? 'Belum ditentukan'}
-                                {document.document_type_source === 'user' && (
+                                {document.document_type_source_label && (
                                     <span className="ml-1 text-xs text-slate-500">
-                                        (ditentukan pengunggah)
+                                        ({document.document_type_source_label})
                                     </span>
                                 )}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-slate-500">Keyakinan</dt>
+                            <dd className="mt-1">
+                                <ConfidenceBadge
+                                    confidence={document.confidence?.score ?? null}
+                                    band={document.confidence?.band ?? null}
+                                    label={document.confidence?.band_label ?? null}
+                                />
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-slate-500">Tanggal dokumen</dt>
+                            <dd className="mt-1 text-slate-800">{document.document_date ?? '—'}</dd>
+                        </div>
+                        <div>
+                            <dt className="text-slate-500">Total</dt>
+                            <dd className="mt-1 text-slate-800">
+                                {document.total === null
+                                    ? '—'
+                                    : `${document.currency ?? ''} ${document.total}`.trim()}
                             </dd>
                         </div>
                         <div>
@@ -199,6 +223,21 @@ export default function DocumentShow({ business, document, can }: Props) {
                         </p>
                     )}
                 </Card>
+
+                {/*
+                 * Panel review hanya muncul setelah tahap kecerdasan dokumen menghasilkan
+                 * sesuatu untuk diperiksa. Menampilkannya pada dokumen yang baru diunggah
+                 * hanya akan menyajikan formulir kosong.
+                 */}
+                {(document.classification !== null ||
+                    document.fields.length > 0 ||
+                    document.extractions.length > 0) && (
+                    <DocumentReviewPanel
+                        businessId={business.id}
+                        document={document}
+                        canReview={can.review}
+                    />
+                )}
 
                 <Card
                     title="Riwayat Proses"
@@ -241,7 +280,7 @@ export default function DocumentShow({ business, document, can }: Props) {
                     title="Isi Berkas"
                     description={
                         document.needs_ocr
-                            ? 'Sebagian halaman memerlukan OCR dan baru dapat dibaca pada Phase 4.'
+                            ? 'Sebagian halaman memerlukan OCR sehingga teksnya belum terbaca.'
                             : 'Hasil pembacaan berkas oleh parser, tanpa penafsiran apa pun.'
                     }
                 >
