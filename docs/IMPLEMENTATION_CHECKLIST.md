@@ -56,7 +56,7 @@ Deliverables per `plan.md` §37 Phase 0.
 | 0.8 | Redis sebagai queue + cache driver | Selesai |
 | 0.9 | Frontend shell (Inertia + React + TypeScript + Vite + Tailwind) | Selesai |
 | 0.10 | Python AI Worker (FastAPI) dengan health endpoint + provider abstraction stub | Selesai |
-| 0.11 | Object storage (S3-compatible, private disk, signed URL) | Selesai |
+| 0.11 | Object storage (S3-compatible, disk `documents` private-only) | Selesai |
 | 0.12 | Money handling: `NUMERIC(20,2)` + integer/decimal casting, tanpa float (`plan.md` §44.14) | Selesai |
 | 0.13 | Audit log foundation (`audit_logs` + `RecordsAuditTrail`) | Selesai |
 
@@ -65,9 +65,9 @@ Acceptance `plan.md` §37 Phase 0:
 | Acceptance | Status | Bukti |
 | --- | --- | --- |
 | App deploy ke staging | Sebagian | Docker image + compose + CI build tersedia. Deployment aktual ke staging butuh infrastruktur/kredensial di luar repo, jadi ditandai belum selesai di §7. |
-| Queue berjalan | Selesai | `QueueSmokeTest` memverifikasi job ter-dispatch dan ter-handle; service `queue` di compose |
-| AI worker reachable | Selesai | `AiWorkerClient` + `/health` endpoint + `AiWorkerClientTest` (HTTP fake) + `test_health.py` |
-| Tests berjalan di CI | Selesai | `.github/workflows/ci.yml` menjalankan Pest, PHPStan, Pint, ESLint, tsc, Vite build, pytest, Ruff |
+| Queue berjalan | Selesai | `QueueSmokeTest`; job `akunta:health --dispatch-queue-probe` lalu `queue:work --stop-when-empty` di job CI `integration` membuktikan job benar-benar dieksekusi worker |
+| AI worker reachable | Selesai | `AiWorkerClient` + `/health` endpoint + `AiWorkerClientTest` (HTTP fake) + `test_health.py`; job CI `integration` memanggil worker yang benar-benar berjalan |
+| Tests berjalan di CI | Selesai | `.github/workflows/ci.yml` menjalankan Pint, PHPStan, migration, Pest, ESLint, Prettier, tsc, Vite build, Ruff, dan pytest |
 
 ---
 
@@ -94,7 +94,7 @@ Acceptance `plan.md` §37 Phase 1:
 | --- | --- | --- |
 | 1 user dapat memiliki beberapa bisnis | Selesai | `MultiBusinessTest` |
 | Accountant dapat mengakses beberapa client | Selesai | `AccountantMultiClientTest` |
-| Tenant isolation tested | Selesai | `TenantIsolationTest`, `CrossTenantApiTest` |
+| Tenant isolation tested | Selesai | `TenantIsolationTest` (model, HTTP) dan `AccountingApiTest` (API v1) |
 
 ---
 
@@ -106,7 +106,7 @@ Build items per `plan.md` §37 Phase 2.
 | --- | --- | --- |
 | 2.1 | Chart of accounts (`chart_of_accounts`) per `plan.md` §12.2 | Selesai |
 | 2.2 | COA templates (`coa_templates`, `coa_template_accounts`) + seeder starter `plan.md` §12.1 | Selesai |
-| 2.3 | Account types (asset, liability, equity, revenue, cost_of_sales, expense, other_expense, other_income) | Selesai |
+| 2.3 | Account types (asset, liability, equity, revenue, cost_of_sales, operating_expense, other_income, other_expense) | Selesai |
 | 2.4 | Account roles / system role (`CASH_OR_BANK`, `ACCOUNTS_RECEIVABLE`, `INVENTORY`, dst. per `plan.md` §11) | Selesai |
 | 2.5 | Journal schema (`journal_entries`, `journal_entry_lines`, `journal_entry_sources`) per `plan.md` §24.2–24.3 | Selesai |
 | 2.6 | DB constraints: `debit >= 0`, `credit >= 0`, `NOT (debit > 0 AND credit > 0)` | Selesai |
@@ -123,10 +123,10 @@ Acceptance `plan.md` §37 Phase 2:
 
 | Acceptance | Status | Bukti |
 | --- | --- | --- |
-| Manual journal dapat dipost | Selesai | `JournalPostingTest`, `JournalApiTest` |
-| Debit = credit enforced | Selesai | `JournalBalanceTest` (service level) + `JournalLineConstraintTest` (DB level) |
-| Trial balance benar | Selesai | `TrialBalanceTest`, `AccountingGoldenDatasetTest` |
-| Closed period tidak dapat diubah | Selesai | `PeriodLockTest` |
+| Manual journal dapat dipost | Selesai | `JournalPostingTest` (service) dan `AccountingApiTest` (API v1) |
+| Debit = credit enforced | Selesai | `JournalPostingTest` dan `JournalEntryDataTest` (service), `JournalLineConstraintTest` (CHECK constraint PostgreSQL) |
+| Trial balance benar | Selesai | `TrialBalanceTest` dan `GoldenDatasetTest` (angka pembanding dikunci sebagai literal) |
+| Closed period tidak dapat diubah | Selesai | `PeriodLockTest`, `JournalImmutabilityTest`, dan `AccountingApiTest` |
 
 ---
 
@@ -145,7 +145,7 @@ Unit test wajib per `plan.md` §33.1, dibatasi pada area yang masuk Phase 0–2:
 | Permissions | Selesai |
 
 `plan.md` §33.3 Accounting Golden Dataset: tersedia versi manual-journal
-(`AccountingGoldenDatasetTest` + `GoldenDatasetSeeder`) yang mencakup sales, purchases,
+(`GoldenDatasetTest` + `GoldenDatasetSeeder`) yang mencakup sales, purchases,
 operating expenses, owner transactions, loans, receivable/payable payments, QRIS
 settlement dengan MDR, dan internal bank transfer. Bagian dataset yang bergantung pada
 AI pipeline (upload dokumen, ekstraksi) belum dikerjakan karena masuk Phase 3+.
@@ -199,6 +199,45 @@ bagian onboarding bisnis di `plan.md` §5.1.
 - `plan.md` §37 Phase 0 — deploy aktual ke staging. Repo sudah menyediakan Docker image,
   compose, dan CI, tetapi eksekusi deployment butuh host/registry/kredensial.
 - `plan.md` §30 — malware scanning, backup + restore test, dan secret manager produksi.
-  Rate limiting, MIME validation dasar, private storage, signed URL, dan audit log sudah ada
-  di kode; sisanya adalah tugas platform/operasional.
+  Rate limiting, private storage, dan audit log sudah ada di kode; sisanya adalah tugas
+  platform/operasional.
+- `plan.md` §30 — endpoint signed URL untuk mengunduh dokumen. TTL-nya sudah dikonfigurasi
+  di `config/akunta.php`, tetapi endpoint-nya menunggu Phase 3 karena belum ada dokumen
+  yang disimpan.
 - `plan.md` §41 — daily PostgreSQL backup dan object storage versioning (operasional).
+
+---
+
+## 8. Verifikasi Iterasi Ini
+
+Perintah di bawah dijalankan pada commit terakhir branch ini, terhadap PostgreSQL 16 dan
+Redis 7 yang benar-benar berjalan.
+
+| Perintah | Hasil |
+| --- | --- |
+| `php artisan migrate:fresh --force` | Seluruh migration jalan tanpa error |
+| `php artisan db:seed --force` | `RolePermissionSeeder` dan `CoaTemplateSeeder` sukses |
+| `php artisan test` | 187 test, 791 assertion, seluruhnya lulus |
+| `vendor/bin/pint --test` | Lolos |
+| `vendor/bin/phpstan analyse` | Level 6, tanpa error |
+| `npm run lint` / `format:check` / `types` / `build` | Seluruhnya lolos |
+| `ruff check .` / `ruff format --check .` / `pytest -q` | Lolos; 7 test worker lulus |
+| `php artisan akunta:health --dispatch-queue-probe` | database, cache, object_storage, ai_worker, dan queue berstatus OK |
+| `php artisan queue:work --stop-when-empty` | `QueueHeartbeatJob` dieksekusi sampai selesai |
+
+Distribusi test:
+
+| Area | Berkas |
+| --- | --- |
+| Phase 0 | `MoneyTest`, `AccountingEnumTest`, `QueueSmokeTest`, `AiWorkerClientTest`, `HealthCheckCommandTest` |
+| Phase 1 | `AuthenticationTest`, `BusinessOnboardingTest`, `MembershipTest`, `RolePermissionTest`, `MultiBusinessTest`, `AccountantMultiClientTest`, `TenantIsolationTest`, `AuditTrailTest` |
+| Phase 2 | `ChartOfAccountsTest`, `JournalEntryDataTest`, `JournalPostingTest`, `JournalLineConstraintTest`, `JournalImmutabilityTest`, `PeriodLockTest`, `TrialBalanceTest`, `GoldenDatasetTest`, `AccountingApiTest` |
+
+Catatan koreksi accounting yang muncul dari test Phase 2: trial balance semula hanya
+membaca `journal_entries.status = 'posted'`, sehingga sebuah reversal entry ikut terhitung
+tanpa entry aslinya dan membalik saldo akun. Laporan kini membaca
+`JournalEntryStatus::ledgerStatuses()` (`posted` dan `reversed`), sesuai `plan.md` §44.6
+yang mewajibkan koreksi lewat reversal entry, bukan lewat penghapusan entry asli.
+
+`tests/Feature` tidak dianalisis PHPStan karena Pest mem-bind `$this` di dalam closure
+saat runtime; hal itu didokumentasikan di `phpstan.neon`.
