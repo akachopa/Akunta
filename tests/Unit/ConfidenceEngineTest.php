@@ -105,14 +105,18 @@ it('menormalkan nilai di luar rentang alih-alih menolaknya', function (): void {
     expect(engine()->normalize(0.9))->toBe('0.9000');
 });
 
-it('mengarahkan hanya pita ready ke status siap', function (): void {
+it('mengarahkan hanya pita ready ke tahap berikutnya', function (): void {
     /*
      * plan.md §16.1 exception-based accounting: "disarankan diperiksa" tetapi lolos tanpa
      * diperiksa adalah kombinasi yang tidak berguna.
+     *
+     * Sejak Phase 5, pita ready mengarah ke NORMALIZING, bukan langsung READY: datanya
+     * cukup dapat dipercaya untuk menjadi transaksi, dan dokumen baru selesai setelah
+     * transaksinya terbentuk.
      */
-    expect(ConfidenceBand::Ready->documentStatus())->toBe(DocumentStatus::Ready);
-    expect(ConfidenceBand::ReviewRecommended->documentStatus())->toBe(DocumentStatus::NeedReview);
-    expect(ConfidenceBand::HumanConfirmationRequired->documentStatus())->toBe(DocumentStatus::NeedReview);
+    expect(ConfidenceBand::Ready->nextDocumentStatus())->toBe(DocumentStatus::Normalizing);
+    expect(ConfidenceBand::ReviewRecommended->nextDocumentStatus())->toBe(DocumentStatus::NeedReview);
+    expect(ConfidenceBand::HumanConfirmationRequired->nextDocumentStatus())->toBe(DocumentStatus::NeedReview);
 
     expect(ConfidenceBand::ReviewRecommended->allowsAutomaticProcessing())->toBeFalse();
 });

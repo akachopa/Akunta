@@ -17,6 +17,7 @@ use App\Domain\Documents\Exceptions\DocumentReviewRejected;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Documents\Models\DocumentField;
 use App\Jobs\ExtractDocumentJob;
+use App\Jobs\NormalizeDocumentJob;
 use App\Models\User;
 use App\Services\Ai\AiPredictionRecorder;
 use App\Services\Ai\ConfidenceEngine;
@@ -225,15 +226,29 @@ class DocumentReviewService
             );
         }
 
+        /*
+         * Koreksi yang membuat dokumen melewati ambang confidence langsung melanjutkan
+         * pipeline: nilai yang berlaku sudah berubah, dan transaksinya harus dibentuk dari
+         * nilai itu, bukan dari nilai yang dikoreksi.
+         */
+        if ($document->processing_status === DocumentStatus::Normalizing) {
+            NormalizeDocumentJob::dispatch($document->getKey(), $document->business_id);
+        }
+
         return $document;
     }
 
     /**
      * Reviewer menyatakan dokumennya benar (plan.md §16.1).
      *
-     * Satu-satunya jalan dokumen mencapai READY tanpa melewati ambang confidence. Syaratnya
+     * Satu-satunya jalan dokumen melewati ambang confidence tanpa memenuhinya. Syaratnya
      * tetap ada ekstraksi yang lolos validasi: persetujuan manusia tidak dapat menciptakan
      * data yang tidak pernah terbaca (plan.md §37 Phase 4).
+     *
+     * Sejak Phase 5, persetujuan mengantar dokumen ke NORMALIZING, bukan langsung READY.
+     * Pernyataan manusia berlaku atas data dokumennya, dan transaksinya tetap harus dibentuk
+     * dari data itu — termasuk bila pembentukannya justru menemukan ketidakkonsistenan yang
+     * belum terlihat pada tampilan field.
      */
     public function approve(Document $document, User $actor, ?string $reason = null): Document
     {
@@ -245,7 +260,7 @@ class DocumentReviewService
 
         $before = $document->processing_status;
 
-        $document->transitionTo(DocumentStatus::Ready, [
+        $document->transitionTo(DocumentStatus::Normalizing, [
             'reviewed_at' => Carbon::now(),
             'reviewed_by' => $actor->getKey(),
             'review_reason' => null,
@@ -255,10 +270,12 @@ class DocumentReviewService
             action: 'document.review_approved',
             entity: $document,
             before: ['processing_status' => $before->value],
-            after: ['processing_status' => DocumentStatus::Ready->value],
+            after: ['processing_status' => DocumentStatus::Normalizing->value],
             reason: $reason,
             actor: $actor,
         );
+
+        NormalizeDocumentJob::dispatch($document->getKey(), $document->business_id);
 
         return $document;
     }
@@ -354,7 +371,7 @@ class DocumentReviewService
         ], $document->business);
 
         $document->transitionTo(
-            $assessment->band->documentStatus(),
+            $assessment->band->nextDocumentStatus(),
             $this->fields->canonicalAttributes($prepared) + [
                 'extraction_confidence' => $lowest,
                 'reviewed_at' => Carbon::now(),

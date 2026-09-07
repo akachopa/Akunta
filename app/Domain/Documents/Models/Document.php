@@ -287,7 +287,7 @@ class Document extends Model implements KeepsAuditSnapshot
     }
 
     /**
-     * Dokumen yang boleh dibaca transaction pipeline (plan.md §37 Phase 4 acceptance).
+     * Dokumen yang datanya sudah selesai dan dapat dibaca phase berikutnya.
      *
      * Batas ini adalah inti acceptance Phase 4 "invalid output tidak masuk transaction
      * pipeline", jadi ia diwujudkan sebagai satu query yang dapat diuji, bukan sebagai
@@ -295,6 +295,10 @@ class Document extends Model implements KeepsAuditSnapshot
      * ekstraksi yang benar-benar diterima. Syarat kedua tidak redundan — dokumen dapat
      * mencapai READY lewat konfirmasi reviewer, dan konfirmasi itu pun harus berpijak pada
      * ekstraksi yang lolos validasi.
+     *
+     * Sejak Phase 5, READY berarti transaksinya sudah terbentuk: pintu masuk normalisasi
+     * adalah status NORMALIZING, dan penjaga yang sama ditegakkan di sana — normalizer
+     * hanya membaca `document_fields` milik ekstraksi yang diterima.
      *
      * @param  Builder<static>  $query
      * @return Builder<static>

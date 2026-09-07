@@ -21,6 +21,7 @@ from app.extractors.router import (
     resolve_extractor,
     supported_document_types,
 )
+from app.extractors.transaction_list import TransactionListExtractor
 from app.providers.base import AIProviderInterface, ProviderResult, ProviderUsage
 from app.providers.heuristic import HeuristicProvider
 
@@ -65,6 +66,17 @@ STATEMENT_ROWS: list[list[str | None]] = [
     ["Tanggal", "Keterangan", "Debit", "Kredit", "Saldo"],
     ["15/01/2026", "SETORAN TUNAI", "", "2.000.000", "7.000.000"],
     ["16/01/2026", "TRSF PT SUMBER MAKMUR", "5.550.000", "", "1.450.000"],
+]
+
+# Laporan penjualan kasir: kolom nilainya tunggal dan bertanda, dengan refund negatif.
+POS_ROWS: list[list[str | None]] = [
+    ["Laporan Penjualan Harian"],
+    ["Tanggal Laporan", "31/03/2026"],
+    ["Total", "4.250.000"],
+    ["Tanggal", "Keterangan", "Nominal"],
+    ["01/03/2026", "SHIFT PAGI", "1.500.000"],
+    ["01/03/2026", "SHIFT SIANG", "3.000.000"],
+    ["02/03/2026", "REFUND PELANGGAN", "-250.000"],
 ]
 
 
@@ -319,6 +331,78 @@ def test_bank_statement_without_rows_is_invalid() -> None:
 
     assert outcome.valid is False
     assert any("baris mutasi" in error for error in outcome.validation_errors)
+
+
+def test_transaction_list_reads_every_row_of_a_sales_spreadsheet() -> None:
+    """plan.md §37 Phase 5: satu spreadsheet penjualan menghasilkan banyak transaksi."""
+    outcome = _extract(
+        TransactionListExtractor(),
+        "pos_report",
+        _row_pages(POS_ROWS),
+    )
+
+    assert outcome.valid
+    assert len(outcome.rows) == 3
+    assert outcome.rows[0]["date"] == "2026-03-01"
+    assert outcome.rows[0]["amount"] == "1500000.00"
+    assert outcome.rows[2]["amount"] == "-250000.00"
+    assert _value(outcome, "total") == "4250000.00"
+
+
+def test_transaction_list_row_carries_its_own_evidence() -> None:
+    outcome = _extract(TransactionListExtractor(), "pos_report", _row_pages(POS_ROWS))
+
+    assert outcome.rows[0]["page_number"] == 1
+    assert "SHIFT PAGI" in (outcome.rows[0]["source_text"] or "")
+
+
+def test_transaction_list_without_document_fields_is_still_valid() -> None:
+    """Laporan penjualan sering hanya berupa tabel, tanpa blok identitas apa pun."""
+    outcome = _extract(
+        TransactionListExtractor(),
+        "pos_report",
+        _row_pages(
+            [
+                ["Tanggal", "Keterangan", "Nominal"],
+                ["01/03/2026", "SHIFT PAGI", "1.500.000"],
+            ]
+        ),
+    )
+
+    assert outcome.valid
+    assert len(outcome.rows) == 1
+
+
+def test_transaction_list_total_must_match_the_sum_of_its_rows() -> None:
+    """Selisih berarti ada baris yang tidak terbaca, dan omzet yang hilang tanpa jejak."""
+    broken = [["Total", "9.000.000"] if row[0] == "Total" else row for row in POS_ROWS]
+
+    outcome = _extract(TransactionListExtractor(), "pos_report", _row_pages(broken))
+
+    assert outcome.valid is False
+    assert any("Total tidak konsisten" in error for error in outcome.validation_errors)
+
+
+def test_transaction_list_without_rows_is_invalid() -> None:
+    outcome = _extract(
+        TransactionListExtractor(),
+        "pos_report",
+        _row_pages([["Tanggal Laporan", "2026-03-31"], ["Total", "4.250.000"]]),
+    )
+
+    assert outcome.valid is False
+    assert any("baris transaksi" in error for error in outcome.validation_errors)
+
+
+def test_transaction_list_rows_use_a_single_signed_amount_column() -> None:
+    """Kolom barisnya milik extractor, bukan bentuk mutasi rekening yang dipaksakan."""
+    schema = TransactionListExtractor().json_schema()
+
+    assert set(schema["properties"]["rows"]["items"]["required"]) == {
+        "date",
+        "description",
+        "amount",
+    }
 
 
 def test_confidence_drops_when_required_fields_are_missing() -> None:

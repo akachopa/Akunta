@@ -13,7 +13,7 @@ from app.api.intelligence import router as intelligence_router
 from app.api.parse import router as parse_router
 from app.config import get_settings
 
-VERSION = "0.3.0"
+VERSION = "0.4.0"
 
 
 def create_app() -> FastAPI:

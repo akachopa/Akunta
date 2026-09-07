@@ -106,6 +106,20 @@ class DocumentExtractor(ABC):
     # koran. Baris disimpan terpisah dari field karena jumlahnya tidak tetap.
     with_rows: bool = False
 
+    # Kolom yang dicari pada setiap baris. Default-nya bentuk mutasi rekening; dokumen
+    # daftar transaksi seperti laporan POS menimpanya dengan kolomnya sendiri, karena
+    # spreadsheet penjualan memuat satu kolom nominal, bukan pasangan debit dan kredit.
+    row_fields: tuple[FieldSpec, ...] = (
+        FieldSpec("date", KIND_DATE),
+        FieldSpec("description", KIND_TEXT),
+        FieldSpec("debit", KIND_MONEY),
+        FieldSpec("credit", KIND_MONEY),
+        FieldSpec("balance", KIND_MONEY),
+    )
+
+    def row_keys(self) -> list[str]:
+        return [spec.key for spec in self.row_fields]
+
     def field_keys(self) -> list[str]:
         return [spec.key for spec in self.fields]
 
@@ -154,22 +168,20 @@ class DocumentExtractor(ABC):
         }
 
         if self.with_rows:
+            row_properties: dict[str, Any] = dict.fromkeys(
+                self.row_keys(), {"type": ["string", "null"]}
+            )
+            row_properties["page_number"] = {"type": ["integer", "null"], "minimum": 1}
+            row_properties["source_text"] = {"type": ["string", "null"]}
+
             schema["required"].append("rows")
             schema["properties"]["rows"] = {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["date", "description", "debit", "credit", "balance"],
-                    "properties": {
-                        "date": {"type": ["string", "null"]},
-                        "description": {"type": ["string", "null"]},
-                        "debit": {"type": ["string", "null"]},
-                        "credit": {"type": ["string", "null"]},
-                        "balance": {"type": ["string", "null"]},
-                        "page_number": {"type": ["integer", "null"], "minimum": 1},
-                        "source_text": {"type": ["string", "null"]},
-                    },
+                    "required": self.row_keys(),
+                    "properties": row_properties,
                 },
             }
 
@@ -194,6 +206,7 @@ class DocumentExtractor(ABC):
                 "pages": pages,
                 "business_context": business_context,
                 "with_rows": self.with_rows,
+                "row_fields": self.row_keys(),
             },
             self.json_schema(),
             self.version,
@@ -345,25 +358,30 @@ class DocumentExtractor(ABC):
             if not isinstance(entry, dict):
                 continue
 
-            parsed_date = parse_date(str(entry.get("date") or ""))
+            row: dict[str, Any] = {}
 
-            rows.append(
-                {
-                    "date": parsed_date.isoformat() if parsed_date is not None else None,
-                    "description": str(entry.get("description") or "").strip() or None,
-                    "debit": self._row_money(entry.get("debit")),
-                    "credit": self._row_money(entry.get("credit")),
-                    "balance": self._row_money(entry.get("balance")),
-                    "page_number": self._page_number(entry.get("page_number")),
-                    "source_text": (
-                        entry.get("source_text")
-                        if isinstance(entry.get("source_text"), str)
-                        else None
-                    ),
-                }
+            for spec in self.row_fields:
+                row[spec.key] = self._row_value(spec, entry.get(spec.key))
+
+            row["page_number"] = self._page_number(entry.get("page_number"))
+            row["source_text"] = (
+                entry.get("source_text") if isinstance(entry.get("source_text"), str) else None
             )
 
+            rows.append(row)
+
         return rows
+
+    def _row_value(self, spec: FieldSpec, raw: Any) -> str | None:
+        if spec.kind == KIND_MONEY:
+            return self._row_money(raw)
+
+        if spec.kind == KIND_DATE:
+            parsed = parse_date(str(raw or ""))
+
+            return parsed.isoformat() if parsed is not None else None
+
+        return str(raw or "").strip() or None
 
     def _row_money(self, raw: Any) -> str | None:
         if raw is None:

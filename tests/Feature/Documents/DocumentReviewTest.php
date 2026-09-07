@@ -16,6 +16,7 @@ use App\Domain\Documents\Exceptions\DocumentReviewRejected;
 use App\Domain\Documents\Models\Document;
 use App\Domain\Tenancy\TenantContext;
 use App\Jobs\ExtractDocumentJob;
+use App\Jobs\NormalizeDocumentJob;
 use App\Models\User;
 use App\Services\DocumentProcessing\DocumentReviewService;
 use Illuminate\Support\Facades\Queue;
@@ -208,7 +209,17 @@ it('menandai dokumen siap ketika seluruh field sudah dipastikan reviewer', funct
 
     $document->refresh();
 
+    /*
+     * Koreksi yang membuat dokumen melewati ambang tidak berhenti di READY: nilai yang
+     * berlaku sudah berubah, dan transaksinya harus dibentuk dari nilai itu (plan.md §37
+     * Phase 5).
+     */
     expect($document->extraction_confidence)->toBe('1.0000');
+    expect($document->processing_status)->toBe(DocumentStatus::Normalizing);
+    Queue::assertPushed(NormalizeDocumentJob::class);
+
+    $document = $this->runNormalization($document);
+
     expect($document->processing_status)->toBe(DocumentStatus::Ready);
     expect($document->review_reason)->toBeNull();
     expect(Document::query()->withoutGlobalScopes()->readyForTransactionPipeline()->count())->toBe(1);
@@ -289,12 +300,16 @@ it('menyetujui dokumen atas pernyataan reviewer', function (): void {
     $document->refresh();
 
     /*
-     * plan.md §16.1: persetujuan manusia adalah satu-satunya jalan dokumen mencapai READY
-     * tanpa melewati ambang confidence.
+     * plan.md §16.1: persetujuan manusia adalah satu-satunya jalan dokumen melewati ambang
+     * confidence tanpa memenuhinya. Yang disetujui adalah datanya, sehingga dokumen masuk
+     * ke normalisasi dan baru mencapai READY setelah transaksinya terbentuk.
      */
-    expect($document->processing_status)->toBe(DocumentStatus::Ready);
+    expect($document->processing_status)->toBe(DocumentStatus::Normalizing);
     expect($document->reviewed_by)->toBe($owner->getKey());
     expect($document->review_reason)->toBeNull();
+    Queue::assertPushed(NormalizeDocumentJob::class);
+
+    expect($this->runNormalization($document)->processing_status)->toBe(DocumentStatus::Ready);
 
     // plan.md §31: keputusan manusia atas data akuntansi harus terekam.
     $log = AuditLog::query()->where('action', 'document.review_approved')->sole();
@@ -427,7 +442,8 @@ it('mengizinkan accountant client mereview dokumen bisnis yang menugaskannya', f
         ->post("/businesses/{$business->getKey()}/documents/{$document->getKey()}/review/approve")
         ->assertRedirect();
 
-    expect($document->refresh()->processing_status)->toBe(DocumentStatus::Ready);
+    expect($document->refresh()->processing_status)->toBe(DocumentStatus::Normalizing);
+    expect($this->runNormalization($document)->processing_status)->toBe(DocumentStatus::Ready);
 });
 
 it('menyembunyikan dokumen bisnis lain dari endpoint review', function (): void {
@@ -467,5 +483,5 @@ it('menyetujui dokumen lewat api', function (): void {
     $this->actingAs($owner)
         ->postJson("/api/v1/documents/{$document->getKey()}/review/approve")
         ->assertOk()
-        ->assertJsonPath('data.processing_status', 'ready');
+        ->assertJsonPath('data.processing_status', 'normalizing');
 });

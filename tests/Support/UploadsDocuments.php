@@ -13,6 +13,7 @@ use App\Services\DocumentProcessing\DocumentClassificationService;
 use App\Services\DocumentProcessing\DocumentExtractionService;
 use App\Services\DocumentProcessing\DocumentIngestionService;
 use App\Services\DocumentProcessing\DocumentProcessingService;
+use App\Services\TransactionNormalization\TransactionNormalizationService;
 use Closure;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
@@ -306,7 +307,11 @@ trait UploadsDocuments
     }
 
     /**
-     * Menjalankan seluruh pipeline Phase 4 hingga selesai untuk satu dokumen.
+     * Menjalankan seluruh pipeline dokumen hingga selesai: parse, classify, extract, normalize.
+     *
+     * Tahapnya dipanggil berurutan alih-alih lewat queue karena setiap service sudah menolak
+     * dokumen yang tidak sedang menunggu tahapnya, sehingga urutan ini menghasilkan keadaan
+     * akhir yang sama dengan rantai job di produksi.
      */
     protected function runIntelligencePipeline(Document $document): Document
     {
@@ -314,6 +319,19 @@ trait UploadsDocuments
             app(DocumentProcessingService::class)->process($document);
             app(DocumentClassificationService::class)->classify($document);
             app(DocumentExtractionService::class)->extract($document);
+            app(TransactionNormalizationService::class)->normalize($document);
+        });
+
+        return $document->refresh();
+    }
+
+    /**
+     * Menjalankan tahap normalisasi saja, untuk dokumen yang masuk NORMALIZING lewat review.
+     */
+    protected function runNormalization(Document $document): Document
+    {
+        app(TenantContext::class)->withBusiness($document->business, function () use ($document): void {
+            app(TransactionNormalizationService::class)->normalize($document);
         });
 
         return $document->refresh();

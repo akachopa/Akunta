@@ -43,12 +43,17 @@ enum ConfidenceBand: string
     }
 
     /**
-     * Status dokumen yang dihasilkan pita ini setelah ekstraksi selesai.
+     * Status dokumen berikutnya setelah datanya selesai dibaca atau dikoreksi.
+     *
+     * Sejak Phase 5, pita `Ready` tidak lagi berarti dokumen selesai: datanya cukup dapat
+     * dipercaya untuk dinormalisasi menjadi transaksi, dan READY baru diberikan setelah
+     * transaksinya benar-benar terbentuk. Dua pita lainnya tetap berhenti di NEED_REVIEW —
+     * data yang belum dipastikan tidak boleh menjadi transaksi (plan.md §44.8).
      */
-    public function documentStatus(): DocumentStatus
+    public function nextDocumentStatus(): DocumentStatus
     {
         return $this->allowsAutomaticProcessing()
-            ? DocumentStatus::Ready
+            ? DocumentStatus::Normalizing
             : DocumentStatus::NeedReview;
     }
 

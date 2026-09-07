@@ -101,6 +101,32 @@ _TYPE_RULES: tuple[_TypeRule, ...] = (
         excludes=("invoice", "faktur"),
     ),
     _TypeRule(
+        "marketplace_report",
+        (
+            "shopee",
+            "tokopedia",
+            "tiktok shop",
+            "lazada",
+            "blibli",
+            "marketplace",
+            "pencairan dana",
+            "biaya administrasi",
+        ),
+    ),
+    _TypeRule(
+        "pos_report",
+        (
+            "laporan penjualan",
+            "laporan kasir",
+            "rekap penjualan",
+            "tutup shift",
+            "shift kasir",
+            "sales report",
+            "pos report",
+        ),
+        excludes=("faktur", "invoice"),
+    ),
+    _TypeRule(
         "purchase_invoice",
         ("invoice", "faktur", "tagihan", "jatuh tempo", "due date", "purchase order", "po no"),
     ),
@@ -136,8 +162,10 @@ _LABELS: dict[str, tuple[str, ...]] = {
         "tanggal invoice",
         "tanggal faktur",
         "tanggal nota",
+        "tanggal laporan",
         "tanggal transaksi",
         "invoice date",
+        "report date",
         "tanggal",
         "tgl",
         "date",
@@ -284,7 +312,11 @@ class HeuristicProvider(AIProviderInterface):
                 }
             )
 
-        rows = self._extract_rows(pages) if payload.get("with_rows") else []
+        rows = (
+            self._extract_rows(pages, list(payload.get("row_fields") or []))
+            if payload.get("with_rows")
+            else []
+        )
 
         return ProviderResult(
             data={"fields": fields, "rows": rows},
@@ -507,13 +539,22 @@ class HeuristicProvider(AIProviderInterface):
 
         return collapsed if len(collapsed) <= limit else collapsed[: limit - 1] + "…"
 
-    def _extract_rows(self, pages: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Mengubah tabel mutasi menjadi baris bertipe.
+    def _extract_rows(
+        self,
+        pages: list[dict[str, Any]],
+        row_keys: list[str],
+    ) -> list[dict[str, Any]]:
+        """Mengubah tabel baris menjadi baris bertipe.
 
-        Hanya dipakai oleh extractor rekening koran. Kolom dikenali dari baris header, bukan
-        dari posisinya, karena setiap bank menyusun kolomnya berbeda.
+        Dipakai oleh extractor rekening koran maupun daftar transaksi spreadsheet. Kolom
+        dikenali dari baris header, bukan dari posisinya, karena setiap bank dan setiap
+        aplikasi kasir menyusun kolomnya berbeda.
+
+        Kolom yang dicari ditentukan extractor-nya: mutasi rekening memakai pasangan debit
+        dan kredit, sedangkan laporan penjualan memakai satu kolom nominal bertanda.
         """
 
+        keys = row_keys or ["date", "description", "debit", "credit", "balance"]
         collected: list[dict[str, Any]] = []
 
         for page in pages:
@@ -528,31 +569,32 @@ class HeuristicProvider(AIProviderInterface):
                 cells = [str(cell).strip() if cell is not None else "" for cell in row]
 
                 if mapping is None:
-                    # Tabel mutasi jarang dimulai di baris pertama: di atasnya biasanya ada
-                    # baris identitas rekening. Baris dianggap header hanya bila memuat
-                    # kolom tanggal dan setidaknya satu kolom nilai, sehingga pencarian
-                    # berlanjut sampai tabel yang sebenarnya ditemukan.
-                    candidate = self._map_columns(cells)
+                    # Tabel jarang dimulai di baris pertama: di atasnya biasanya ada baris
+                    # identitas rekening atau judul laporan. Baris dianggap header hanya
+                    # bila memuat kolom tanggal dan setidaknya satu kolom nilai, sehingga
+                    # pencarian berlanjut sampai tabel yang sebenarnya ditemukan.
+                    candidate = self._map_columns(cells, keys)
 
-                    if self._is_statement_header(candidate):
+                    if self._is_row_header(candidate):
                         mapping = candidate
 
                     continue
 
-                parsed = self._parse_statement_row(cells, mapping, page_number)
+                parsed = self._parse_table_row(cells, mapping, keys, page_number)
 
                 if parsed is not None:
                     collected.append(parsed)
 
         return collected
 
-    def _map_columns(self, header: list[str]) -> dict[str, int]:
+    def _map_columns(self, header: list[str], keys: list[str]) -> dict[str, int]:
         aliases: dict[str, tuple[str, ...]] = {
             "date": ("tanggal", "tgl", "date", "waktu"),
             "description": ("keterangan", "uraian", "description", "berita", "transaksi"),
             "debit": ("debit", "debet", "keluar", "withdrawal"),
             "credit": ("kredit", "credit", "masuk", "deposit", "setoran"),
             "balance": ("saldo", "balance"),
+            "amount": ("nominal", "jumlah", "amount", "nilai", "total", "penjualan", "omzet"),
         }
 
         mapping: dict[str, int] = {}
@@ -560,19 +602,22 @@ class HeuristicProvider(AIProviderInterface):
         for index, cell in enumerate(header):
             lowered = cell.lower()
 
-            for field, names in aliases.items():
+            for field in keys:
+                names = aliases.get(field, ())
+
                 if field not in mapping and any(name in lowered for name in names):
                     mapping[field] = index
 
         return mapping
 
-    def _is_statement_header(self, mapping: dict[str, int]) -> bool:
-        return "date" in mapping and bool({"debit", "credit", "balance"} & set(mapping))
+    def _is_row_header(self, mapping: dict[str, int]) -> bool:
+        return "date" in mapping and bool({"debit", "credit", "balance", "amount"} & set(mapping))
 
-    def _parse_statement_row(
+    def _parse_table_row(
         self,
         cells: list[str],
         mapping: dict[str, int],
+        keys: list[str],
         page_number: int,
     ) -> dict[str, Any] | None:
         if not mapping or "date" not in mapping:
@@ -584,15 +629,20 @@ class HeuristicProvider(AIProviderInterface):
         if parsed_date is None:
             return None
 
-        return {
-            "date": parsed_date.isoformat(),
-            "description": self._cell(cells, mapping.get("description")) or "",
-            "debit": self._money_cell(cells, mapping.get("debit")),
-            "credit": self._money_cell(cells, mapping.get("credit")),
-            "balance": self._money_cell(cells, mapping.get("balance")),
+        parsed: dict[str, Any] = {
             "page_number": page_number,
             "source_text": self._snippet(" | ".join(cells)),
         }
+
+        for key in keys:
+            if key == "date":
+                parsed[key] = parsed_date.isoformat()
+            elif key == "description":
+                parsed[key] = self._cell(cells, mapping.get(key)) or ""
+            else:
+                parsed[key] = self._money_cell(cells, mapping.get(key))
+
+        return parsed
 
     def _cell(self, cells: list[str], index: int | None) -> str | None:
         if index is None or index >= len(cells):

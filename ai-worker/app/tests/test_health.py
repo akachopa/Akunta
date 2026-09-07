@@ -12,7 +12,7 @@ def test_health_endpoint_reports_ok() -> None:
 
     payload = response.json()
     assert payload["status"] == "ok"
-    assert payload["version"] == "0.3.0"
+    assert payload["version"] == "0.4.0"
     assert "null" in payload["available_providers"]
 
 

@@ -267,6 +267,16 @@ class ExtractionValidator
                 DocumentFieldKey::NetAmount,
             ],
 
+            /*
+             * Daftar transaksi tidak punya field wajib tingkat dokumen. Nilai laporan POS
+             * atau marketplace ada pada barisnya, dan laporan yang sah sering hanya berupa
+             * tabel tanpa blok identitas maupun baris total. Yang diperiksa adalah barisnya
+             * (lihat transactionListArithmetic), bukan header yang boleh tidak ada.
+             */
+            DocumentType::PosReport,
+            DocumentType::MarketplaceReport,
+            DocumentType::ConsignmentReport => [],
+
             default => [
                 DocumentFieldKey::DocumentDate,
                 DocumentFieldKey::Total,
@@ -303,6 +313,11 @@ class ExtractionValidator
         return match ($documentType) {
             DocumentType::BankStatement => $this->bankStatementArithmetic($fields, $rows),
             DocumentType::QrisSettlement, DocumentType::EwalletSettlement => $this->settlementArithmetic($fields),
+
+            DocumentType::PosReport,
+            DocumentType::MarketplaceReport,
+            DocumentType::ConsignmentReport => $this->transactionListArithmetic($fields, $rows),
+
             default => $this->invoiceArithmetic($fields),
         };
     }
@@ -431,6 +446,81 @@ class ExtractionValidator
                 $debit,
                 $expected,
                 $closing
+            );
+        }
+
+        return $errors;
+    }
+
+    /**
+     * Jumlah baris = total laporan (plan.md §37 Phase 5 "spreadsheet transaction parser").
+     *
+     * Setiap baris wajib bertanggal dan bernominal, karena baris tanpa keduanya tidak dapat
+     * menjadi transaksi. Membuangnya diam-diam berarti kehilangan penjualan tanpa satu pun
+     * tanda di laporan mana pun, dan itu justru kesalahan yang paling sulit ditemukan
+     * kembali.
+     *
+     * Total laporan diperiksa hanya bila tertulis. Banyak laporan kasir tidak memuatnya,
+     * dan mewajibkannya akan menolak dokumen yang sebenarnya lengkap.
+     *
+     * @param  array<string, PreparedField>  $fields
+     * @param  array<int, array<string, PreparedField>>  $rows
+     * @return array<int, string>
+     */
+    private function transactionListArithmetic(array $fields, array $rows): array
+    {
+        if ($rows === []) {
+            return ['Dokumen tidak menghasilkan satu pun baris transaksi.'];
+        }
+
+        $errors = [];
+        $undated = 0;
+        $amountless = 0;
+        $zero = 0;
+
+        foreach ($rows as $row) {
+            if (! isset($row[DocumentFieldKey::RowDate->value])) {
+                $undated++;
+            }
+
+            $amount = $row[DocumentFieldKey::RowAmount->value]->valueNumber ?? null;
+
+            if ($amount === null) {
+                $amountless++;
+
+                continue;
+            }
+
+            if (Money::isZero($amount)) {
+                $zero++;
+            }
+        }
+
+        if ($undated > 0) {
+            $errors[] = sprintf('Ada %d baris tanpa tanggal yang dapat dibaca.', $undated);
+        }
+
+        if ($amountless > 0) {
+            $errors[] = sprintf('Ada %d baris tanpa nominal yang dapat dibaca.', $amountless);
+        }
+
+        if ($zero > 0) {
+            $errors[] = sprintf('Ada %d baris bernilai nol.', $zero);
+        }
+
+        $total = $this->amount($fields, DocumentFieldKey::Total);
+
+        if ($total === null) {
+            return $errors;
+        }
+
+        $summed = $this->sumRows($rows, DocumentFieldKey::RowAmount);
+
+        if (! Money::equals($summed, $total)) {
+            $errors[] = sprintf(
+                'Total tidak konsisten: jumlah baris %s tidak sama dengan total tertulis %s.',
+                $summed,
+                $total
             );
         }
 

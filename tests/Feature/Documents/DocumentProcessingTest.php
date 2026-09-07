@@ -88,16 +88,15 @@ it('mencatat tahap phase berikutnya sebagai pending agar batas phase terlihat', 
     expect($jobs['parse']->duration_ms)->not->toBeNull();
 
     /*
-     * Classify dan extract tidak lagi muncul sebagai baris menunggu: keduanya sudah
+     * Classify, extract, dan normalize tidak muncul sebagai baris menunggu: ketiganya sudah
      * dibangun, dan job-nya dibuat ketika tahapnya benar-benar dijalankan.
      */
     expect($jobs->has('classify'))->toBeFalse();
     expect($jobs->has('extract'))->toBeFalse();
+    expect($jobs->has('normalize'))->toBeFalse();
 
-    foreach (['normalize', 'match'] as $stage) {
-        expect($jobs[$stage]->status)->toBe(ProcessingJobStatus::Pending);
-        expect($jobs[$stage]->error_message)->toContain('Phase');
-    }
+    expect($jobs['match']->status)->toBe(ProcessingJobStatus::Pending);
+    expect($jobs['match']->error_message)->toContain('Phase');
 });
 
 it('mengirim job klasifikasi setelah parse berhasil', function (): void {

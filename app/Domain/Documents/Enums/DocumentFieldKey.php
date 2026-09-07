@@ -11,9 +11,10 @@ namespace App\Domain\Documents\Enums;
  * sebagai string, dan hanya kunci yang terdaftar di sini yang diterima: field karangan
  * tidak boleh tersimpan sebagai data akuntansi, dan enum inilah yang menahannya.
  *
- * Lima kunci terakhir milik baris mutasi rekening koran, bukan field tingkat dokumen.
- * Keduanya berada pada satu enum karena keduanya tersimpan di `document_fields`, dibedakan
- * oleh `row_index` (plan.md §8.4 `row_reference`).
+ * Kunci pada blok terakhir milik baris di dalam dokumen — mutasi rekening koran dan daftar
+ * transaksi spreadsheet — bukan field tingkat dokumen. Keduanya berada pada satu enum karena
+ * keduanya tersimpan di `document_fields`, dibedakan oleh `row_index` (plan.md §8.4
+ * `row_reference`).
  */
 enum DocumentFieldKey: string
 {
@@ -50,6 +51,14 @@ enum DocumentFieldKey: string
     case RowCredit = 'credit';
     case RowBalance = 'balance';
 
+    /*
+     * Kolom nilai tunggal bertanda, dipakai daftar transaksi spreadsheet seperti laporan
+     * POS dan marketplace. Berbeda dari pasangan debit/kredit rekening koran: penjualan
+     * positif, refund dan potongan negatif, dan arah transaksinya diturunkan dari tandanya
+     * (plan.md §37 Phase 5 "spreadsheet transaction parser").
+     */
+    case RowAmount = 'amount';
+
     public function kind(): DocumentFieldKind
     {
         return match ($this) {
@@ -70,7 +79,8 @@ enum DocumentFieldKey: string
             self::NetAmount,
             self::RowDebit,
             self::RowCredit,
-            self::RowBalance => DocumentFieldKind::Money,
+            self::RowBalance,
+            self::RowAmount => DocumentFieldKind::Money,
 
             self::TransactionCount => DocumentFieldKind::Integer,
 
@@ -116,6 +126,7 @@ enum DocumentFieldKey: string
             self::RowDebit => 'Debit',
             self::RowCredit => 'Kredit',
             self::RowBalance => 'Saldo',
+            self::RowAmount => 'Nominal',
         };
     }
 
@@ -147,7 +158,14 @@ enum DocumentFieldKey: string
     {
         return in_array(
             $this,
-            [self::RowDate, self::RowDescription, self::RowDebit, self::RowCredit, self::RowBalance],
+            [
+                self::RowDate,
+                self::RowDescription,
+                self::RowDebit,
+                self::RowCredit,
+                self::RowBalance,
+                self::RowAmount,
+            ],
             true
         );
     }

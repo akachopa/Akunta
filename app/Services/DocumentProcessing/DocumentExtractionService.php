@@ -34,7 +34,8 @@ use Throwable;
  * Tiga hasil yang mungkin, dan ketiganya berakhir berbeda:
  *
  * - **Diterima.** Field tersimpan, kolom canonical §8.1 terisi, dan confidence engine §15
- *   memutuskan apakah dokumen langsung READY atau masuk antrean review.
+ *   memutuskan apakah dokumen lanjut ke normalisasi transaksi (Phase 5) atau masuk antrean
+ *   review.
  * - **Ditolak.** Ekstraksi tersimpan berstatus `rejected` lengkap dengan alasan dan raw
  *   output, tanpa satu pun `document_fields`. Dokumen menunggu manusia.
  * - **Tidak dapat dikerjakan.** Jenis dokumennya belum punya extractor; tahapnya dilewati
@@ -153,7 +154,7 @@ class DocumentExtractionService
             ], $document->business);
 
             $document->transitionTo(
-                $assessment->band->documentStatus(),
+                $assessment->band->nextDocumentStatus(),
                 $this->fields->canonicalAttributes($validated->documentFields()) + [
                     'extraction_confidence' => $result->confidence,
                     'extracted_at' => Carbon::now(),

@@ -64,24 +64,24 @@ it('mengizinkan setiap status yang tidak sedang berjalan untuk diantre ulang', f
 
 it('menganggap berjalan hanya status yang tahapnya sudah dibangun', function (): void {
     /*
-     * Sejak Phase 4, CLASSIFYING dan EXTRACTING benar-benar dikerjakan worker, sehingga
+     * Sejak Phase 4 dan Phase 5, keempat tahap ini benar-benar dikerjakan worker, sehingga
      * polling atasnya akan berujung pada perubahan status.
      */
     expect(DocumentStatus::Queued->isProcessing())->toBeTrue();
     expect(DocumentStatus::Parsing->isProcessing())->toBeTrue();
     expect(DocumentStatus::Classifying->isProcessing())->toBeTrue();
     expect(DocumentStatus::Extracting->isProcessing())->toBeTrue();
+    expect(DocumentStatus::Normalizing->isProcessing())->toBeTrue();
 
     /*
-     * NORMALIZING dan MATCHING sebaliknya: tidak ada worker yang akan memindahkan dokumen
-     * dari sana sampai Phase 5 dan Phase 7, sehingga polling tanpa akhir hanya membebani
-     * server tanpa pernah menghasilkan perubahan.
+     * MATCHING sebaliknya: tidak ada worker yang akan memindahkan dokumen dari sana sampai
+     * Phase 7, sehingga polling tanpa akhir hanya membebani server tanpa pernah
+     * menghasilkan perubahan.
      */
-    expect(DocumentStatus::Normalizing->isProcessing())->toBeFalse();
     expect(DocumentStatus::Matching->isProcessing())->toBeFalse();
 
-    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing', 'classifying', 'extracting');
-    expect(DocumentStatus::processingValues())->not->toContain('normalizing', 'matching');
+    expect(DocumentStatus::processingValues())->toContain('queued', 'parsing', 'classifying', 'extracting', 'normalizing');
+    expect(DocumentStatus::processingValues())->not->toContain('matching');
 });
 
 it('mengizinkan koreksi reviewer membuka kembali tahap ekstraksi', function (): void {
@@ -114,23 +114,19 @@ it('memberi label indonesia pada setiap status', function (): void {
     }
 });
 
-it('menandai tahap parse, classify, dan extract sudah dibangun', function (): void {
+it('menandai tahap parse sampai normalize sudah dibangun', function (): void {
     foreach ([
         DocumentProcessingStage::Parse,
         DocumentProcessingStage::Classify,
         DocumentProcessingStage::Extract,
+        DocumentProcessingStage::Normalize,
     ] as $stage) {
         expect($stage->isImplemented())->toBeTrue();
-        expect($stage->phase())->toBeLessThanOrEqual(4);
+        expect($stage->phase())->toBeLessThanOrEqual(5);
     }
 
-    foreach ([
-        DocumentProcessingStage::Normalize,
-        DocumentProcessingStage::Match,
-    ] as $stage) {
-        expect($stage->isImplemented())->toBeFalse();
-        expect($stage->phase())->toBeGreaterThan(4);
-    }
+    expect(DocumentProcessingStage::Match->isImplemented())->toBeFalse();
+    expect(DocumentProcessingStage::Match->phase())->toBeGreaterThan(5);
 });
 
 it('memetakan setiap tahap ke status dokumen yang sesuai', function (): void {
@@ -203,17 +199,26 @@ it('menentukan tipe nilai setiap field canonical', function (): void {
     expect(DocumentFieldKey::IssuerName->kind())->toBe(DocumentFieldKind::Text);
 });
 
-it('memisahkan field baris mutasi dari field tingkat dokumen', function (): void {
+it('memisahkan field baris dari field tingkat dokumen', function (): void {
     expect(DocumentFieldKey::rowFields())->toBe([
         DocumentFieldKey::RowDate,
         DocumentFieldKey::RowDescription,
         DocumentFieldKey::RowDebit,
         DocumentFieldKey::RowCredit,
         DocumentFieldKey::RowBalance,
+        DocumentFieldKey::RowAmount,
     ]);
 
     expect(DocumentFieldKey::Total->isRowField())->toBeFalse();
     expect(DocumentFieldKey::RowBalance->isRowField())->toBeTrue();
+
+    /*
+     * Laporan POS dan marketplace memakai satu kolom nilai bertanda, bukan pasangan
+     * debit/kredit, sehingga `amount` adalah field baris tersendiri (plan.md §37 Phase 5).
+     */
+    expect(DocumentFieldKey::RowAmount->isRowField())->toBeTrue();
+    expect(DocumentFieldKey::RowAmount->kind())->toBe(DocumentFieldKind::Money);
+    expect(DocumentFieldKey::RowAmount->canonicalColumn())->toBeNull();
 });
 
 it('memetakan field ke kolom canonical dokumen', function (): void {

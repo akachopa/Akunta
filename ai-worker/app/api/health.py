@@ -23,7 +23,7 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service=settings.app_name,
-        version="0.3.0",
+        version="0.4.0",
         environment=settings.environment,
         default_provider=settings.default_provider,
         available_providers=available_providers(),

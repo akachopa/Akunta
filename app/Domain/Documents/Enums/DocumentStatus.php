@@ -10,11 +10,14 @@ namespace App\Domain\Documents\Enums;
  * UPLOADED → QUEUED → PARSING → CLASSIFYING → EXTRACTING → NORMALIZING → MATCHING →
  * READY, dengan NEED_REVIEW, UNSUPPORTED, FAILED, dan ARCHIVED sebagai cabang.
  *
- * Sampai Phase 4 pipeline berjalan hingga EXTRACTING selesai. Dokumen yang ekstraksinya
- * diterima dan confidence-nya melewati ambang auto-ready berakhir di READY; sisanya di
- * NEED_REVIEW. READY di sini berarti data dokumennya lengkap dan tervalidasi, bukan bahwa
- * transaksinya sudah dibuat: NORMALIZING dan MATCHING adalah pekerjaan Phase 5 dan Phase 7
- * yang mengolah dokumen READY menjadi transaksi.
+ * Sampai Phase 5 pipeline berjalan hingga NORMALIZING selesai. Dokumen yang ekstraksinya
+ * diterima dan confidence-nya melewati ambang auto-ready masuk ke NORMALIZING, lalu berakhir
+ * di READY setelah transaksinya terbentuk; sisanya menunggu di NEED_REVIEW.
+ *
+ * READY karena itu berarti dua hal sekaligus: data dokumennya lengkap dan tervalidasi, dan
+ * transaksi canonical-nya sudah dibuat. MATCHING tetap ada sebagai state karena plan.md
+ * §25.1 mendefinisikannya, tetapi tidak ada dokumen yang memasukinya sebelum Phase 7
+ * membangun duplicate dan related-document matching.
  */
 enum DocumentStatus: string
 {
@@ -73,15 +76,20 @@ enum DocumentStatus: string
             self::Classifying => [self::Extracting, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
             /*
-             * EXTRACTING dapat langsung ke READY. Sampai Phase 4, tahap terakhir yang
-             * benar-benar berjalan adalah ekstraksi, dan dokumen yang ekstraksinya
-             * diterima dengan confidence tinggi memang sudah selesai sebagai dokumen.
-             * NORMALIZING tetap ada sebagai state karena plan.md §25.1 mendefinisikannya,
-             * tetapi tidak ada dokumen yang memasukinya sebelum Phase 5 dibangun.
+             * Sejak Phase 5, ekstraksi yang diterima dengan confidence tinggi berlanjut ke
+             * NORMALIZING, bukan langsung READY: dokumen belum selesai sebelum transaksinya
+             * terbentuk. READY tetap menjadi tujuan yang sah untuk jenis dokumen yang belum
+             * memiliki normalizer, karena datanya memang sudah lengkap.
              */
-            self::Extracting => [self::Ready, self::Normalizing, self::NeedReview, self::Queued, self::Failed, self::Archived],
+            self::Extracting => [self::Normalizing, self::Ready, self::NeedReview, self::Queued, self::Failed, self::Archived],
 
-            self::Normalizing => [self::Matching, self::NeedReview, self::Failed, self::Archived],
+            /*
+             * NORMALIZING dapat langsung ke READY karena MATCHING adalah pekerjaan Phase 7.
+             * Ia juga dapat kembali ke QUEUED agar percobaan yang terputus di tengah tahap
+             * dapat dipulihkan tanpa intervensi database.
+             */
+            self::Normalizing => [self::Matching, self::Ready, self::NeedReview, self::Queued, self::Failed, self::Archived],
+
             self::Matching => [self::Ready, self::NeedReview, self::Failed, self::Archived],
 
             /*
@@ -94,9 +102,13 @@ enum DocumentStatus: string
              * klasifikasi memang disengaja — berkasnya sudah terbaca dan jenisnya sudah
              * ditetapkan manusia, jadi mengulang keduanya hanya membakar token untuk
              * prediksi yang akan langsung dikalahkan (plan.md §17.1).
+             *
+             * Keduanya juga dapat masuk ke NORMALIZING, karena koreksi nilai field maupun
+             * persetujuan reviewer mengubah data yang menjadi dasar transaksi: transaksinya
+             * harus dibuat ulang dari nilai yang berlaku sekarang.
              */
-            self::Ready => [self::NeedReview, self::Extracting, self::Queued, self::Archived],
-            self::NeedReview => [self::Queued, self::Extracting, self::Ready, self::Archived],
+            self::Ready => [self::NeedReview, self::Extracting, self::Normalizing, self::Queued, self::Archived],
+            self::NeedReview => [self::Queued, self::Extracting, self::Normalizing, self::Ready, self::Archived],
             self::Unsupported => [self::Queued, self::Archived],
             self::Failed => [self::Queued, self::Archived],
 
