@@ -134,9 +134,17 @@ class TransactionNormalizationService
         $confidence = $this->documentConfidence($document);
 
         DB::transaction(function () use ($document, $job, $existing, $result, $extractionId, $confidence): void {
+            /*
+             * Nomor diambil sebelum transaksi lama dibuang, sehingga penomoran hanya maju.
+             * Bila urutannya dibalik, normalisasi ulang akan memakai kembali nomor yang
+             * sudah pernah dilihat user untuk transaksi yang isinya berbeda — dan referensi
+             * yang berpindah makna adalah hal yang paling merusak pada jejak audit
+             * (plan.md §31).
+             */
+            $references = $this->references->nextBatch($document->business, count($result->transactions));
+
             $this->discard($existing);
 
-            $references = $this->references->nextBatch($document->business, count($result->transactions));
             $created = [];
 
             foreach ($result->transactions as $position => $normalized) {
