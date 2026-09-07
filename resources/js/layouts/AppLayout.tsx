@@ -15,12 +15,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
 
     /*
      * Menu mengikuti plan.md §6, tetapi hanya memuat cabang yang sudah dibangun pada
-     * Phase 0–2. Inbox, Transactions, Review Center, Reconciliation, Closing, dan AI
-     * Analyst belum ditampilkan karena halamannya belum ada.
+     * Phase 0–3. Transactions, Review Center, Reconciliation, Closing, dan AI Analyst
+     * belum ditampilkan karena halamannya belum ada.
      */
     const navigation: NavItem[] = currentBusiness
         ? [
               { label: 'Dashboard', href: '/dashboard' },
+              {
+                  label: 'Inbox',
+                  href: `/businesses/${currentBusiness.id}/documents`,
+                  permission: 'document.view',
+              },
               { label: 'Profil Bisnis', href: `/businesses/${currentBusiness.id}` },
               {
                   label: 'Chart of Accounts',

@@ -7,8 +7,8 @@ namespace App\Domain\Business\Enums;
 /**
  * Permission granular yang dipakai policy.
  *
- * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–2.
- * Permission untuk dokumen, review, dan rekonsiliasi ditambahkan ketika phase-nya
+ * Daftar ini sengaja hanya memuat kapabilitas yang benar-benar ada di Phase 0–3.
+ * Permission untuk review, rekonsiliasi, dan closing ditambahkan ketika phase-nya
  * dikerjakan, agar tidak ada permission menggantung tanpa penegakan.
  */
 enum PermissionSlug: string
@@ -18,6 +18,10 @@ enum PermissionSlug: string
 
     case MemberView = 'member.view';
     case MemberManage = 'member.manage';
+
+    case DocumentView = 'document.view';
+    case DocumentUpload = 'document.upload';
+    case DocumentManage = 'document.manage';
 
     case BankAccountView = 'bank_account.view';
     case BankAccountManage = 'bank_account.manage';
@@ -51,6 +55,9 @@ enum PermissionSlug: string
             self::BusinessManage => 'Mengelola profil dan pengaturan bisnis',
             self::MemberView => 'Melihat daftar member',
             self::MemberManage => 'Menambah, mengubah, dan menghapus member',
+            self::DocumentView => 'Melihat dokumen pada inbox',
+            self::DocumentUpload => 'Mengunggah dokumen ke inbox',
+            self::DocumentManage => 'Memproses ulang dan mengarsipkan dokumen',
             self::BankAccountView => 'Melihat rekening bank',
             self::BankAccountManage => 'Mengelola rekening bank',
             self::PeriodView => 'Melihat accounting period',

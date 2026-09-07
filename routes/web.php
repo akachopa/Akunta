@@ -9,6 +9,8 @@ use App\Http\Controllers\BusinessController;
 use App\Http\Controllers\BusinessMemberController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentDownloadController;
 use App\Http\Controllers\JournalEntryController;
 use App\Http\Controllers\TrialBalanceController;
 use Illuminate\Support\Facades\Route;
@@ -49,6 +51,19 @@ Route::middleware('auth')->group(function (): void {
             Route::post('members', [BusinessMemberController::class, 'store'])->name('members.store');
             Route::patch('members/{member}', [BusinessMemberController::class, 'update'])->name('members.update');
             Route::delete('members/{member}', [BusinessMemberController::class, 'destroy'])->name('members.destroy');
+
+            /*
+             * plan.md §6 dan §35.2: inbox adalah pintu masuk utama alur kerja, jadi
+             * route-nya berada langsung di bawah workspace bisnis.
+             */
+            Route::get('documents', [DocumentController::class, 'index'])->name('documents.index');
+            Route::post('documents', [DocumentController::class, 'store'])
+                ->middleware('throttle:30,1')
+                ->name('documents.store');
+            Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+            Route::get('documents/{document}/download', DocumentDownloadController::class)->name('documents.download');
+            Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('documents.reprocess');
+            Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('documents.archive');
 
             Route::get('accounts', [ChartOfAccountController::class, 'index'])->name('accounts.index');
             Route::post('accounts', [ChartOfAccountController::class, 'store'])->name('accounts.store');

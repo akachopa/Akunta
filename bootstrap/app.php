@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Domain\Accounting\Exceptions\AccountingException;
+use App\Domain\Documents\Exceptions\DocumentException;
 use App\Domain\Tenancy\Exceptions\CrossTenantWriteAttempt;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\ResolveTenant;
@@ -54,6 +55,22 @@ return Application::configure(basePath: dirname(__DIR__))
             }
 
             return back()->withInput()->withErrors(['accounting' => $exception->getMessage()]);
+        });
+
+        /*
+         * Pelanggaran aturan domain dokumen juga merupakan kesalahan yang dapat
+         * diperbaiki user, misalnya memproses ulang dokumen yang sedang diproses atau
+         * berkas asli yang hilang dari storage.
+         */
+        $exceptions->render(function (DocumentException $exception, Request $request): ?Response {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => $exception->getMessage(),
+                    'errors' => ['document' => [$exception->getMessage()]],
+                ], 422);
+            }
+
+            return back()->withInput()->withErrors(['document' => $exception->getMessage()]);
         });
 
         $exceptions->render(function (CrossTenantWriteAttempt $exception, Request $request): ?Response {

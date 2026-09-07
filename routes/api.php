@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AccountingPeriodController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BusinessController;
+use App\Http\Controllers\Api\V1\DocumentController;
 use App\Http\Controllers\Api\V1\JournalController;
 use App\Http\Controllers\Api\V1\ReportController;
 use Illuminate\Support\Facades\Route;
@@ -13,9 +14,9 @@ use Illuminate\Support\Facades\Route;
 /*
  * Prefix /api/v1 dikonfigurasi di bootstrap/app.php (plan.md §29).
  *
- * Endpoint yang tersedia dibatasi pada Phase 1–2: auth, businesses, accounts, journals,
- * periods, dan trial balance. Endpoint documents, transactions, review, reconciliation,
- * dan AI analyst pada plan.md §29.3–§29.5, §29.8, dan §29.10 belum dibuat karena berada
+ * Endpoint yang tersedia dibatasi pada Phase 1–3: auth, businesses, accounts, journals,
+ * periods, trial balance, dan documents. Endpoint transactions, review, reconciliation,
+ * dan AI analyst pada plan.md §29.4–§29.5, §29.8, dan §29.10 belum dibuat karena berada
  * di phase berikutnya.
  */
 
@@ -34,6 +35,11 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('businesses/{business}', [BusinessController::class, 'show'])->name('api.businesses.show');
         Route::patch('businesses/{business}', [BusinessController::class, 'update'])->name('api.businesses.update');
 
+        Route::get('businesses/{business}/documents', [DocumentController::class, 'index'])->name('api.documents.index');
+        Route::post('businesses/{business}/documents', [DocumentController::class, 'store'])
+            ->middleware('throttle:30,1')
+            ->name('api.documents.store');
+
         Route::get('businesses/{business}/accounts', [AccountController::class, 'index'])->name('api.accounts.index');
         Route::post('businesses/{business}/accounts', [AccountController::class, 'store'])->name('api.accounts.store');
 
@@ -45,6 +51,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('businesses/{business}/reports/trial-balance', [ReportController::class, 'trialBalance'])
             ->name('api.reports.trial-balance');
     });
+
+    Route::get('documents/{document}', [DocumentController::class, 'show'])->name('api.documents.show');
+    Route::post('documents/{document}/reprocess', [DocumentController::class, 'reprocess'])->name('api.documents.reprocess');
+    Route::post('documents/{document}/archive', [DocumentController::class, 'archive'])->name('api.documents.archive');
 
     Route::get('journals/{journal}', [JournalController::class, 'show'])->name('api.journals.show');
     Route::post('journals/{journal}/approve', [JournalController::class, 'approve'])->name('api.journals.approve');

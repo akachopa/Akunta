@@ -48,6 +48,87 @@ export type JournalEntryStatus = 'draft' | 'pending_approval' | 'approved' | 'po
 export type AccountingPeriodStatus =
     'open' | 'reviewing' | 'ready_to_close' | 'closed' | 'reopened';
 
+/**
+ * plan.md §25.1 ditambah UNSUPPORTED dari plan.md §5.3.
+ */
+export type DocumentStatus =
+    | 'uploaded'
+    | 'queued'
+    | 'parsing'
+    | 'classifying'
+    | 'extracting'
+    | 'normalizing'
+    | 'matching'
+    | 'ready'
+    | 'need_review'
+    | 'unsupported'
+    | 'failed'
+    | 'archived';
+
+export interface DocumentSummary {
+    id: string;
+    reference: string;
+    original_filename: string;
+    file_extension: string;
+    mime_type: string;
+    byte_size: number;
+    source_type: string;
+    processing_status: DocumentStatus;
+    processing_status_label: string;
+    is_processing: boolean;
+    needs_attention: boolean;
+    is_retryable: boolean;
+    document_type: string | null;
+    document_type_label: string | null;
+    document_type_source: string | null;
+    page_count: number | null;
+    content_kind: string | null;
+    needs_ocr: boolean;
+    uploaded_at: string;
+    parsed_at: string | null;
+    failure_reason: string | null;
+    archived_at: string | null;
+}
+
+export interface DocumentPage {
+    id: string;
+    page_number: number;
+    kind: 'pdf_page' | 'sheet' | 'table' | 'image';
+    label: string | null;
+    is_tabular: boolean;
+    text: string | null;
+    char_count: number;
+    rows: (string | null)[][] | null;
+    row_count: number | null;
+    needs_ocr: boolean;
+    metadata: Record<string, unknown> | null;
+}
+
+export interface DocumentProcessingJob {
+    id: string;
+    stage: string;
+    stage_label: string;
+    stage_phase: number;
+    stage_implemented: boolean;
+    status: string;
+    status_label: string;
+    attempt: number;
+    queued_at: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    duration_ms: number | null;
+    error_message: string | null;
+    result: Record<string, unknown> | null;
+}
+
+export interface DocumentDetail extends DocumentSummary {
+    checksum_sha256: string;
+    uploaded_by: string | null;
+    archived_by: string | null;
+    pages: DocumentPage[];
+    processing_jobs: DocumentProcessingJob[];
+}
+
 export interface TrialBalanceRow {
     account_id: string;
     code: string;

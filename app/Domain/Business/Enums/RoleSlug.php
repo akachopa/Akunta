@@ -39,6 +39,12 @@ enum RoleSlug: string
      * reopen; plan.md §4.4 memberikan "lock/reopen period" kepada accountant. Pembagian
      * di bawah mengikuti pembagian tersebut secara literal.
      *
+     * Untuk dokumen, plan.md §4.2 dan §4.3 memberi owner dan staff hak "upload data"
+     * serta melihat dokumen. Reprocess dan archive tidak disebut untuk staff, sehingga
+     * keduanya hanya diberikan kepada owner dan accountant. Accountant mendapat hak
+     * upload karena rekonsiliasi pada plan.md §4.4 menuntut mutasi bank klien berada di
+     * dalam sistem.
+     *
      * @return array<int, PermissionSlug>
      */
     public function permissions(): array
@@ -51,6 +57,9 @@ enum RoleSlug: string
                 PermissionSlug::BusinessManage,
                 PermissionSlug::MemberView,
                 PermissionSlug::MemberManage,
+                PermissionSlug::DocumentView,
+                PermissionSlug::DocumentUpload,
+                PermissionSlug::DocumentManage,
                 PermissionSlug::BankAccountView,
                 PermissionSlug::BankAccountManage,
                 PermissionSlug::PeriodView,
@@ -67,6 +76,8 @@ enum RoleSlug: string
             self::BusinessStaff => [
                 PermissionSlug::BusinessView,
                 PermissionSlug::MemberView,
+                PermissionSlug::DocumentView,
+                PermissionSlug::DocumentUpload,
                 PermissionSlug::BankAccountView,
                 PermissionSlug::PeriodView,
                 PermissionSlug::AccountView,
@@ -77,6 +88,9 @@ enum RoleSlug: string
             self::Accountant => [
                 PermissionSlug::BusinessView,
                 PermissionSlug::MemberView,
+                PermissionSlug::DocumentView,
+                PermissionSlug::DocumentUpload,
+                PermissionSlug::DocumentManage,
                 PermissionSlug::BankAccountView,
                 PermissionSlug::BankAccountManage,
                 PermissionSlug::PeriodView,

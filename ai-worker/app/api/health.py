@@ -8,6 +8,7 @@ container, tetapi juga tidak membocorkan konfigurasi apa pun selain nama provide
 from fastapi import APIRouter
 
 from app.config import get_settings
+from app.parsers.router import supported_extensions
 from app.providers.registry import available_providers
 from app.schemas.health import HealthResponse
 
@@ -21,9 +22,13 @@ def health() -> HealthResponse:
     return HealthResponse(
         status="ok",
         service=settings.app_name,
-        version="0.1.0",
+        version="0.2.0",
         environment=settings.environment,
         default_provider=settings.default_provider,
         available_providers=available_providers(),
-        capabilities=[],
+        # Hanya kapabilitas yang benar-benar terpasang yang dilaporkan. Laravel memakai
+        # daftar ini untuk memastikan worker yang dihubungi memang mampu memparse
+        # dokumen sebelum pipeline dijalankan.
+        capabilities=["document_parse"],
+        supported_extensions=supported_extensions(),
     )
